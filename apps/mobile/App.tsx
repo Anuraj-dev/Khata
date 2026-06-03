@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Animated, BackHandler, StyleSheet, Text, View } from "react-native";
+import { BackHandler, Pressable, StyleSheet, Text, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -34,6 +34,8 @@ import { api } from "../../convex/_generated/api";
 
 function MobileApp() {
   const insets = useSafeAreaInsets();
+  const [isGuestMode, setIsGuestMode] = useState(false);
+
   const {
     session,
     sessionLoading,
@@ -96,16 +98,17 @@ function MobileApp() {
     return () => sub.remove();
   }, [isAddSheetOpen, isSettingsModalOpen, setIsAddSheetOpen, setIsSettingsModalOpen]);
 
-  if (sessionLoading && !hasCachedSessionHint) {
+  if (sessionLoading && !hasCachedSessionHint && !isGuestMode) {
     return <BootScreen detail="Starting Khata..." />;
   }
 
-  if (!session) {
+  if (!session && !isGuestMode) {
     return (
       <MobileAuthScreen
         canGoogleSignIn={canGoogleSignIn}
         isSigningIn={isSigningIn}
         onGoogleSignIn={() => void handleGoogleSignIn()}
+        onSkip={() => setIsGuestMode(true)}
       />
     );
   }
@@ -128,6 +131,18 @@ function MobileApp() {
           <Text style={styles.syncText}>Syncing</Text>
         ) : null}
       </View>
+
+      {/* Guest mode banner */}
+      {isGuestMode && !session ? (
+        <Pressable
+          style={styles.guestBanner}
+          onPress={() => void handleGoogleSignIn()}
+        >
+          <Text style={styles.guestBannerText}>
+            Guest mode — tap to sign in and sync data
+          </Text>
+        </Pressable>
+      ) : null}
 
       {/* Toast */}
       {toast ? (
@@ -275,4 +290,14 @@ const styles = StyleSheet.create({
   },
   retryText: { ...typography.bodyMd, color: colors.textPrimary, flex: 1 },
   retryAction: { ...typography.micro, color: colors.accent },
+  guestBanner: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.surface,
+    borderRadius: 6,
+    alignItems: "center",
+  },
+  guestBannerText: { ...typography.micro, color: colors.textMuted },
 });

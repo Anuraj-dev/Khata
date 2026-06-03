@@ -8,8 +8,6 @@ export type Tab = "expenses" | "trips" | "insights";
 export type Toast = { kind: "error" | "info"; message: string };
 
 export function useWorkspaceState() {
-  const [session, setSession] = useState<object | null>(null);
-  const [sessionLoading, setSessionLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("expenses");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pendingMutations, setPendingMutations] = useState(0);
@@ -19,23 +17,27 @@ export function useWorkspaceState() {
   const [isDataBootstrapReady, setIsDataBootstrapReady] = useState(false);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const sessionResult = authClient.useSession();
+  const session = sessionResult.data ?? null;
+  const sessionLoading = sessionResult.isPending ?? false;
   const hasCachedSessionHint = hasCachedAuthSessionHint();
+
+  useEffect(() => {
+    if (sessionResult.error) {
+      mobileLogger.warn("session_error", { error: String(sessionResult.error) });
+    }
+  }, [sessionResult.error]);
 
   const storeUserMutation = useMutation(api.users.store);
 
   useEffect(() => {
-    const { data, error } = authClient.useSession();
-    setSession(data?.session ?? null);
-    setSessionLoading(false);
-    if (error) mobileLogger.warn("session_error", { error: String(error) });
-  }, []);
-
-  useEffect(() => {
     if (!session) return;
-    void storeUserMutation().then(() => setIsDataBootstrapReady(true)).catch((e) => {
-      mobileLogger.error("store_user_failed", { error: String(e) });
-      setIsDataBootstrapReady(true);
-    });
+    void storeUserMutation()
+      .then(() => setIsDataBootstrapReady(true))
+      .catch((e) => {
+        mobileLogger.error("store_user_failed", { error: String(e) });
+        setIsDataBootstrapReady(true);
+      });
   }, [session, storeUserMutation]);
 
   const showToast = useCallback((t: Toast) => {

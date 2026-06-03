@@ -5,9 +5,10 @@ type Props = {
   canGoogleSignIn: boolean;
   isSigningIn: boolean;
   onGoogleSignIn: () => void;
+  onSkip: () => void;
 };
 
-export function MobileAuthScreen({ canGoogleSignIn, isSigningIn, onGoogleSignIn }: Props) {
+export function MobileAuthScreen({ canGoogleSignIn, isSigningIn, onGoogleSignIn, onSkip }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.hero}>
@@ -28,6 +29,15 @@ export function MobileAuthScreen({ canGoogleSignIn, isSigningIn, onGoogleSignIn 
           ) : (
             <Text style={styles.buttonText}>Continue with Google</Text>
           )}
+        </Pressable>
+
+        <Pressable
+          onPress={onSkip}
+          style={({ pressed }) => [styles.skipButton, pressed && styles.buttonPressed]}
+          accessibilityRole="button"
+          accessibilityLabel="Skip sign in"
+        >
+          <Text style={styles.skipText}>Skip for now</Text>
         </Pressable>
 
         <Text style={styles.hint}>
@@ -71,6 +81,16 @@ const styles = StyleSheet.create({
     fontFamily: fonts.sansSemibold,
     fontSize: 16,
     color: colors.textInverse,
+  },
+  skipButton: {
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  skipText: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 14,
+    color: colors.textMuted,
   },
   hint: {
     ...typography.micro,
