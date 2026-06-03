@@ -1,5 +1,5 @@
 import { createAuthClient } from "better-auth/react";
-import { convexClient, crossDomainClient } from "@convex-dev/better-auth/client";
+import { convexClient, crossDomainClient } from "@convex-dev/better-auth/client/plugins";
 import * as SecureStore from "expo-secure-store";
 import { mobileLogger } from "./logger";
 
