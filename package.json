@@ -1,0 +1,18 @@
+{
+  "name": "khata",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "mobile:start": "bun run --cwd apps/mobile start",
+    "mobile:android": "bun run --cwd apps/mobile android",
+    "mobile:ios": "bun run --cwd apps/mobile ios",
+    "lint": "bun run --cwd apps/mobile lint",
+    "test": "bun run --cwd apps/mobile test"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.2"
+  }
+}

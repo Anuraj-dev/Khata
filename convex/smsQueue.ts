@@ -1,0 +1,105 @@
+import { internalMutation, mutation, query } from "./_generated/server";
+import { v } from "convex/values";
+import { requireTokenIdentifier } from "./authHelpers";
+
+export const listPending = query({
+  args: {},
+  handler: async (ctx) => {
+    const owner = await requireTokenIdentifier(ctx);
+    return ctx.db
+      .query("smsReviewQueue")
+      .withIndex("by_owner_status", (q) =>
+        q.eq("ownerTokenIdentifier", owner).eq("status", "pending")
+      )
+      .order("desc")
+      .collect();
+  },
+});
+
+export const enqueue = mutation({
+  args: {
+    rawSms: v.string(),
+    parsedAmount: v.optional(v.number()),
+    parsedParty: v.optional(v.string()),
+    parsedDirection: v.optional(v.union(v.literal("debit"), v.literal("credit"))),
+    parsedDate: v.optional(v.string()),
+    parsedUpiRef: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const owner = await requireTokenIdentifier(ctx);
+    return ctx.db.insert("smsReviewQueue", {
+      ...args,
+      status: "pending",
+      ownerTokenIdentifier: owner,
+      createdAt: Date.now(),
+    });
+  },
+});
+
+export const approve = mutation({
+  args: {
+    queueId: v.id("smsReviewQueue"),
+    amount: v.number(),
+    note: v.string(),
+    category: v.union(
+      v.literal("food"),
+      v.literal("travel"),
+      v.literal("shopping"),
+      v.literal("bills"),
+      v.literal("health"),
+      v.literal("other")
+    ),
+    direction: v.union(v.literal("debit"), v.literal("credit")),
+    date: v.string(),
+    party: v.optional(v.string()),
+    upiRef: v.optional(v.string()),
+  },
+  handler: async (ctx, { queueId, ...expenseFields }) => {
+    const owner = await requireTokenIdentifier(ctx);
+    const item = await ctx.db.get(queueId);
+    if (!item || item.ownerTokenIdentifier !== owner) throw new Error("Not found");
+
+    await ctx.db.patch(queueId, { status: "approved", reviewedAt: Date.now() });
+
+    const now = Date.now();
+    return ctx.db.insert("expenses", {
+      clientId: `sms-${queueId}`,
+      source: "sms",
+      note: expenseFields.note,
+      amount: expenseFields.amount,
+      category: expenseFields.category,
+      direction: expenseFields.direction,
+      date: expenseFields.date,
+      party: expenseFields.party,
+      upiRef: expenseFields.upiRef,
+      ownerTokenIdentifier: owner,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export const reject = mutation({
+  args: { queueId: v.id("smsReviewQueue") },
+  handler: async (ctx, { queueId }) => {
+    const owner = await requireTokenIdentifier(ctx);
+    const item = await ctx.db.get(queueId);
+    if (!item || item.ownerTokenIdentifier !== owner) throw new Error("Not found");
+    await ctx.db.patch(queueId, { status: "rejected", reviewedAt: Date.now() });
+  },
+});
+
+export const purgeOldRejected = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const old = await ctx.db
+      .query("smsReviewQueue")
+      .filter((q) =>
+        q.and(q.eq(q.field("status"), "rejected"), q.lt(q.field("createdAt"), cutoff))
+      )
+      .collect();
+    for (const item of old) await ctx.db.delete(item._id);
+    return old.length;
+  },
+});
