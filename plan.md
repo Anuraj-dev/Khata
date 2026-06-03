@@ -6,8 +6,8 @@
 
 | # | Milestone | Status |
 |---|---|---|
-| M1 | Foundation & Infrastructure | 🔨 In Progress |
-| M2 | Personal Expense Core | ⏳ Pending |
+| M1 | Foundation & Infrastructure | ✅ Done |
+| M2 | Personal Expense Core | 🔨 In Progress |
 | M3 | UPI SMS Integration | ⏳ Pending |
 | M4 | Group Trip Splitter | ⏳ Pending |
 | M5 | Insights & Polish | ⏳ Pending |
@@ -91,7 +91,25 @@
 
 **Goal:** User can log expenses manually, view daily list, and see running totals.
 
-*(Expand into micro-steps when M1 is complete)*
+### Micro-steps
+
+**Components**
+- [x] `src/components/ExpenseCard.tsx` — single row: amount (red/green), note, category icon, party, time
+- [x] `src/components/CategoryPicker.tsx` — horizontal scroll of category chips (food/travel/shopping/bills/health/other)
+- [x] `src/components/AmountInput.tsx` — numeric keypad input that stores paise, displays ₹
+- [x] `src/components/AddExpenseSheet.tsx` — bottom sheet: amount, note, category, debit/credit toggle, date
+- [x] `src/components/DaySectionHeader.tsx` — date label + day total (e.g. "Today · ₹1,240 spent")
+- [x] `src/components/EmptyExpenses.tsx` — empty state illustration + "Add your first expense" CTA
+
+**Screens**
+- [x] `src/screens/ExpensesScreen.tsx` — SectionList grouped by date, pull-to-refresh, today summary bar
+
+**Hooks**
+- [x] `src/hooks/useExpenseList.ts` — groups expenses by date, computes daily totals, merges local + server data
+
+**Wire-up in App.tsx**
+- [x] Open `AddExpenseSheet` when FAB pressed on expenses tab
+- [x] Guest mode bypasses session gate for UI testing
 
 ---
 

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "main": "index.ts",
   "scripts": {
-    "start": "expo start",
+    "start": "expo start --go --lan",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "typecheck": "tsc --noEmit",
@@ -24,7 +24,6 @@
     "expo-blur": "^55.0.14",
     "expo-clipboard": "~8.0.8",
     "expo-crypto": "~15.0.7",
-    "expo-dev-client": "~6.0.20",
     "expo-font": "^55.0.6",
     "expo-haptics": "~15.0.8",
     "expo-linear-gradient": "~15.0.7",
@@ -41,6 +40,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "expo-dev-client": "~6.0.20",
     "@typescript/native-preview": "7.0.0-dev.20260421.2",
     "babel-preset-expo": "~54.0.10",
     "typescript": "~5.9.2",

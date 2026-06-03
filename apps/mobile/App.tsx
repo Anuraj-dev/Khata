@@ -23,14 +23,14 @@ import { BottomTabBar } from "./src/components/BottomTabBar";
 import { FAB } from "./src/components/FAB";
 import { ConfirmDialog } from "./src/components/ConfirmDialog";
 import { ExpensesScreen } from "./src/screens/ExpensesScreen";
+import { AddExpenseSheet } from "./src/components/AddExpenseSheet";
+import { useExpenseMutations } from "./src/hooks/useExpenseMutations";
 import { TripsScreen } from "./src/screens/TripsScreen";
 import { InsightsScreen } from "./src/screens/InsightsScreen";
 import { useWorkspaceState } from "./src/hooks/useWorkspaceState";
 import { useGoogleAuth } from "./src/hooks/useGoogleAuth";
 import { useRetryQueue, type RetryPayload } from "./src/hooks/useRetryQueue";
 import { useConfirm } from "./src/hooks/useConfirm";
-import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
 
 function MobileApp() {
   const insets = useSafeAreaInsets();
@@ -53,23 +53,11 @@ function MobileApp() {
     hasCachedSessionHint,
   } = useWorkspaceState();
 
-  const addExpenseMutation = useMutation(api.expenses.addExpense);
+  const runRetryPayload = useCallback(async (_payload: RetryPayload) => {
+    // retry logic wired after mutations are set up
+  }, []);
 
-  const runRetryPayload = useCallback(async (payload: RetryPayload) => {
-    if (payload.type === "addExpense") {
-      await addExpenseMutation({
-        clientId: payload.clientId,
-        amount: payload.amount,
-        note: payload.note,
-        category: payload.category,
-        source: "manual",
-        direction: payload.direction,
-        date: payload.date,
-        party: payload.party,
-        upiRef: payload.upiRef,
-      });
-    }
-  }, [addExpenseMutation]);
+  const { addExpense } = useExpenseMutations({ showToast, enqueueRetry: () => {} });
 
   const { retryQueue, enqueueRetry, retryQueuedMutations } = useRetryQueue({
     runRetryPayload,
@@ -169,7 +157,7 @@ function MobileApp() {
       {/* Screens */}
       {activeTab === "expenses" ? (
         <ScreenErrorBoundary screenName="Expenses">
-          <ExpensesScreen />
+          <ExpensesScreen onAddPress={() => setIsAddSheetOpen(true)} />
         </ScreenErrorBoundary>
       ) : null}
       {activeTab === "trips" ? (
@@ -183,8 +171,17 @@ function MobileApp() {
         </ScreenErrorBoundary>
       ) : null}
 
+      {/* Add Expense Sheet */}
+      {activeTab === "expenses" ? (
+        <AddExpenseSheet
+          visible={isAddSheetOpen}
+          onClose={() => setIsAddSheetOpen(false)}
+          onSave={addExpense}
+        />
+      ) : null}
+
       {/* FAB */}
-      {session && !isAddSheetOpen && activeTab !== "insights" ? (
+      {(session || isGuestMode) && !isAddSheetOpen && activeTab !== "insights" ? (
         <FAB
           bottom={fabBottom}
           onPress={() => setIsAddSheetOpen(true)}
