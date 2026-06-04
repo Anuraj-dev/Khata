@@ -3,16 +3,7 @@ import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Doc } from "@convex/_generated/dataModel";
 import { formatRupees, toIsoDate } from "../lib/dates";
-import type { ExpenseCategory } from "../lib/expenseStorage";
-
-const CATEGORY_META: Record<ExpenseCategory, { label: string; color: string; icon: string }> = {
-  food: { label: "Food", color: "var(--color-food)", icon: "🍜" },
-  travel: { label: "Travel", color: "var(--color-travel)", icon: "✈️" },
-  shopping: { label: "Shopping", color: "var(--color-shopping)", icon: "🛍️" },
-  bills: { label: "Bills", color: "var(--color-bills)", icon: "🧾" },
-  health: { label: "Health", color: "var(--color-health)", icon: "💊" },
-  other: { label: "Other", color: "var(--color-other)", icon: "·" },
-};
+import { useCategories } from "../hooks/useCategories";
 
 const MONTHS_BACK = 6;
 
@@ -28,6 +19,7 @@ export function InsightsScreen() {
   const now = new Date();
   // offset 0 = current month, negative = older. Clamp to the loaded window.
   const [offset, setOffset] = useState(0);
+  const { resolve } = useCategories();
 
   // Load a fixed window covering the last MONTHS_BACK months.
   const windowStart = toIsoDate(new Date(now.getFullYear(), now.getMonth() - (MONTHS_BACK - 1), 1));
@@ -57,7 +49,7 @@ export function InsightsScreen() {
   // Category breakdown (debit only) for the selected month.
   const breakdown = useMemo(() => {
     if (!selected) return [];
-    const sums = new Map<ExpenseCategory, number>();
+    const sums = new Map<string, number>();
     for (const e of expenses ?? ([] as Doc<"expenses">[])) {
       if (e.direction !== "debit" || e.date.slice(0, 7) !== selected.key) continue;
       sums.set(e.category, (sums.get(e.category) ?? 0) + e.amount);
@@ -121,13 +113,13 @@ export function InsightsScreen() {
         ) : (
           <div className="flex flex-col gap-3">
             {breakdown.map(([cat, amount]) => {
-              const meta = CATEGORY_META[cat];
+              const meta = resolve(cat);
               const pct = breakdownTotal > 0 ? (amount / breakdownTotal) * 100 : 0;
               return (
                 <div key={cat} className="flex flex-col gap-1">
                   <div className="flex items-center justify-between text-sm">
                     <span style={{ color: "var(--color-text-secondary)" }}>
-                      {meta.icon} {meta.label}
+                      {meta.emoji} {meta.label}
                     </span>
                     <span className="tabular-nums" style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}>
                       {formatRupees(amount)}
