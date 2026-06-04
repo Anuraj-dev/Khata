@@ -9,6 +9,7 @@
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "plugins": [
+      "expo-dev-client",
       [
         "expo-notifications",
         {

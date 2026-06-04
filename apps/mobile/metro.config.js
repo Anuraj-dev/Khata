@@ -14,7 +14,7 @@ config.resolver.nodeModulesPaths = [
 config.resolver.extraNodeModules = new Proxy(
   {},
   {
-    get: (_, name) => path.join(projectRoot, "node_modules", name),
+    get: (_, name) => path.join(projectRoot, "node_modules", String(name)),
   }
 );
 
