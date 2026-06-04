@@ -161,4 +161,13 @@ export const expenseStore = {
     hydratingPromise = null;
     emit();
   },
+  // Wipes local expenses AND persisted storage (used by "clear all data"). Unlike
+  // reset(), it stays hydrated and clears localStorage so stale data can't reload.
+  clearAllLocal(): void {
+    cached = [];
+    hydrated = true;
+    hydratingPromise = null;
+    persist();
+    emit();
+  },
 };
