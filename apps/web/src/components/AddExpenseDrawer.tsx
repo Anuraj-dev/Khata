@@ -119,7 +119,7 @@ export function AddExpenseDrawer({ open, onClose, onSave }: Props) {
           <input
             ref={noteRef}
             type="text"
-            placeholder="Note or who it was for"
+            placeholder={direction === "debit" ? "What was this for? e.g. lunch with Riya" : "Where did it come from? e.g. salary, refund"}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             maxLength={80}
