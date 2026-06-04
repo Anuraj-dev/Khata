@@ -13,3 +13,4 @@ ios/
 # un-ignore the Capacitor Android project inside apps/web
 !apps/web/android/
 bun.lock
+project_files/
