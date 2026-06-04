@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.0](https://github.com/Anuraj-dev/Khata/compare/v0.4.0...v0.5.0) (2026-06-04)
+
+
+### Features
+
+* **m6:** read-only trip sharing via invite link/QR ([a867f94](https://github.com/Anuraj-dev/Khata/commit/a867f947aea26f2f91e87bdfe79ca68ef7f2f751))
+* **m6:** read-only trip sharing via invite link/QR ([f033922](https://github.com/Anuraj-dev/Khata/commit/f0339220fe5e92e2b8c8da7ad029bad5a9dd163f))
+
 ## [0.4.0](https://github.com/Anuraj-dev/Khata/compare/v0.3.0...v0.4.0) (2026-06-04)
 
 
