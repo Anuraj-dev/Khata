@@ -1,7 +1,12 @@
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 export function toIsoDate(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  // Use local date components — toISOString() is UTC and shifts the date
+  // for users east of UTC (e.g. IST UTC+5:30 shows yesterday until 5:30 AM).
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 export function isIsoDate(value: string): boolean {
