@@ -5,7 +5,8 @@ on:
     branches:
       - main
 jobs:
-  lint:
+  typecheck-web:
+    name: Typecheck (web)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -15,6 +16,6 @@ jobs:
           bun-version: latest
       - name: Install dependencies
         run: bun install --frozen-lockfile
-      - name: Lint
-        working-directory: apps/mobile
-        run: bun run lint
+      - name: Typecheck
+        working-directory: apps/web
+        run: bun run typecheck

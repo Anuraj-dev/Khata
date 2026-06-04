@@ -10,6 +10,7 @@ import authConfig from "./auth.config";
 // CORS allow-list applied by registerRoutes) plus the cross-domain one-time-token
 // flow used by the convexClient/crossDomainClient on the web.
 const siteUrl = process.env.SITE_URL ?? "http://localhost:5173";
+const prodUrl = "https://khata.raja-dev.me";
 
 export const authComponent = createClient<DataModel>(components.betterAuth);
 
@@ -18,7 +19,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
     // Convex auto-provides CONVEX_SITE_URL (the .convex.site origin) at runtime.
     baseURL: process.env.CONVEX_SITE_URL,
     database: authComponent.adapter(ctx),
-    trustedOrigins: [siteUrl, "http://localhost:5173"],
+    trustedOrigins: [siteUrl, prodUrl, "http://localhost:5173"],
     socialProviders: {
       google: {
         clientId: process.env.GOOGLE_OAUTH_CLIENT_ID!,
