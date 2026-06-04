@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.0](https://github.com/Anuraj-dev/Khata/compare/v0.3.0...v0.4.0) (2026-06-04)
+
+
+### Features
+
+* **home:** net balance figure + derived trips owed/owe summary ([700d991](https://github.com/Anuraj-dev/Khata/commit/700d991539698ebf9c9e42596f77138ef93c4ad1))
+* **home:** net balance figure + derived trips owed/owe summary ([bb8db36](https://github.com/Anuraj-dev/Khata/commit/bb8db360ba9d1a7622d22821a32901fbca633484))
+* **trips:** gate close on full settlement; keep keyboard up on membe… ([abfc52f](https://github.com/Anuraj-dev/Khata/commit/abfc52f73c472493c9f575cb01faf6f8afcc06a0))
+* **trips:** gate close on full settlement; keep keyboard up on member add ([95f6343](https://github.com/Anuraj-dev/Khata/commit/95f634393f9d73bcbfcc7162d5f322f73d985ef8))
+
 ## [0.3.0](https://github.com/Anuraj-dev/Khata/compare/v0.2.0...v0.3.0) (2026-06-04)
 
 
