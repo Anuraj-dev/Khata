@@ -162,6 +162,19 @@
 - [x] **Fix: expense list unscrollable** — added missing `min-h-0` down the flex chain (`main` → screen → list) so the scroll container shrinks to the viewport; momentum scroll + overscroll-contain + sticky day headers. Applied `min-h-0` to Trips/Settings/Insights too.
 - [ ] Trip sharing (read-only, 1-week QR link) — design agreed, not yet built (see below)
 
+### M5.2: Net balance + derived trips summary on home ✅
+
+**Scope (this round, before M6):**
+
+**1. Net balance on the home summary.** The today bar shows Spend + Received; added a **Net** figure (received − spent), green/`+` when positive, red/`−` when negative. Shown only when there's both a spend and a credit today. Derived from the existing `todayDebit`/`todayCredit` — no new data.
+
+**2. Derived trips summary (no ledger mirroring).** Decided **against** writing trip expenses/settlements into the personal `expenses` ledger: SMS auto-capture already logs UPI transactions, so mirroring would **double-count** every UPI payment/repayment (on both the spend and income side), and the app can't reliably tell UPI from cash. Instead:
+- New server query `trips.myTripBalances` → per active trip, the net position of the member named `"You"` (positive = owed, negative = owe), computed from `tripExpenses` + `settlements` (math mirrors `lib/tripBalances.ts`, re-implemented in Convex since it runs in a separate bundle).
+- `components/TripsSummary.tsx` — read-only home card listing each active trip as "you're owed ₹X" / "you owe ₹Y"; rows under ₹1 (settled) hidden; tap → trip detail. Renders on the Expenses screen above the list (and above the empty state).
+- The personal expense list stays SMS + manual only — trips never pollute it. This naturally folds into the M6 "you owe / you're owed" card.
+
+**Files:** `convex/trips.ts` (`myTripBalances` + `netForMember`), `apps/web/src/components/TripsSummary.tsx`, `apps/web/src/screens/ExpensesScreen.tsx`.
+
 ### M6 (proposed): Read-only trip sharing
 
 **Agreed model (from discussion):**
