@@ -16,6 +16,7 @@ import { SmsQueueScreen } from "./screens/SmsQueueScreen";
 import { useExpenseMutations } from "./hooks/useExpenseMutations";
 import { useRetryQueue } from "./hooks/useRetryQueue";
 import { useSmsPoller } from "./hooks/useSmsPoller";
+import { useDeepLinkAuth } from "./hooks/useDeepLinkAuth";
 import type { RetryPayload } from "./hooks/useRetryQueue";
 import { useLocation } from "react-router";
 
@@ -125,10 +126,16 @@ function AuthGate({ children }: { children: (isAuthenticated: boolean) => React.
   return <>{children(true)}</>;
 }
 
+function DeepLinkHandler() {
+  useDeepLinkAuth();
+  return null;
+}
+
 export function App() {
   return (
     <RootErrorBoundary>
       <ConvexClientProvider>
+        <DeepLinkHandler />
         <AuthGate>
           {(isAuthenticated) => <AppShell isAuthenticated={isAuthenticated} />}
         </AuthGate>
