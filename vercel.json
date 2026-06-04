@@ -1,5 +1,5 @@
 {
-  "buildCommand": "bun --cwd apps/web run build",
+  "buildCommand": "cd apps/web && bun run build",
   "outputDirectory": "apps/web/dist",
   "installCommand": "bun install",
   "rewrites": [
