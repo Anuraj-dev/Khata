@@ -14,3 +14,4 @@ ios/
 !apps/web/android/
 bun.lock
 project_files/
+.agent/
