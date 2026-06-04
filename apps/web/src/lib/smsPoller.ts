@@ -35,7 +35,8 @@ export type ParsedSmsMessage = {
 
 function buildNote(party: string | undefined, direction: "debit" | "credit"): string {
   if (party) return party;
-  return direction === "credit" ? "UPI received" : "UPI payment";
+  // No counterparty parsed — keep it honest rather than mislabeling as "UPI payment".
+  return direction === "credit" ? "Money received" : "Bank transaction";
 }
 
 // Polls the native SMS inbox for new UPI messages since `afterTimestamp`.
