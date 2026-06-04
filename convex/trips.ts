@@ -315,3 +315,49 @@ export const settleTrip = mutation({
     await ctx.db.patch(tripId, { status: "settled", updatedAt: Date.now() });
   },
 });
+
+export const clearAll = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const owner = await requireTokenIdentifier(ctx);
+
+    const trips = await ctx.db
+      .query("trips")
+      .withIndex("by_owner", (q) => q.eq("ownerTokenIdentifier", owner))
+      .collect();
+
+    const expenses = await ctx.db
+      .query("tripExpenses")
+      .withIndex("by_owner", (q) => q.eq("ownerTokenIdentifier", owner))
+      .collect();
+    for (const e of expenses) await ctx.db.delete(e._id);
+
+    for (const trip of trips) {
+      const settlements = await ctx.db
+        .query("settlements")
+        .withIndex("by_owner_trip", (q) =>
+          q.eq("ownerTokenIdentifier", owner).eq("tripId", trip._id)
+        )
+        .collect();
+      for (const s of settlements) await ctx.db.delete(s._id);
+
+      const shares = await ctx.db
+        .query("tripShares")
+        .withIndex("by_owner_trip", (q) =>
+          q.eq("ownerTokenIdentifier", owner).eq("tripId", trip._id)
+        )
+        .collect();
+      for (const s of shares) await ctx.db.delete(s._id);
+
+      const links = await ctx.db
+        .query("tripMemberLinks")
+        .withIndex("by_trip", (q) => q.eq("tripId", trip._id))
+        .collect();
+      for (const l of links) await ctx.db.delete(l._id);
+
+      await ctx.db.delete(trip._id);
+    }
+
+    return { deleted: trips.length };
+  },
+});
