@@ -65,6 +65,11 @@ export const createTrip = mutation({
   },
 });
 
+const splitModeValidator = v.optional(v.union(v.literal("equal"), v.literal("custom")));
+const sharesValidator = v.optional(
+  v.array(v.object({ member: v.string(), amount: v.number() }))
+);
+
 export const addTripExpense = mutation({
   args: {
     clientId: v.string(),
@@ -73,6 +78,9 @@ export const addTripExpense = mutation({
     amount: v.number(),
     note: v.string(),
     splitAmong: v.array(v.string()),
+    splitMode: splitModeValidator,
+    shares: sharesValidator,
+    emoji: v.optional(v.string()),
     date: v.string(),
   },
   handler: async (ctx, args) => {
@@ -84,6 +92,36 @@ export const addTripExpense = mutation({
       ownerTokenIdentifier: owner,
       createdAt: Date.now(),
     });
+  },
+});
+
+export const updateTripExpense = mutation({
+  args: {
+    expenseId: v.id("tripExpenses"),
+    paidBy: v.optional(v.string()),
+    amount: v.optional(v.number()),
+    note: v.optional(v.string()),
+    splitAmong: v.optional(v.array(v.string())),
+    splitMode: splitModeValidator,
+    shares: sharesValidator,
+    emoji: v.optional(v.string()),
+    date: v.optional(v.string()),
+  },
+  handler: async (ctx, { expenseId, ...updates }) => {
+    const owner = await requireTokenIdentifier(ctx);
+    const expense = await ctx.db.get(expenseId);
+    if (!expense || expense.ownerTokenIdentifier !== owner) throw new Error("Not found");
+    await ctx.db.patch(expenseId, updates);
+  },
+});
+
+export const deleteTripExpense = mutation({
+  args: { expenseId: v.id("tripExpenses") },
+  handler: async (ctx, { expenseId }) => {
+    const owner = await requireTokenIdentifier(ctx);
+    const expense = await ctx.db.get(expenseId);
+    if (!expense || expense.ownerTokenIdentifier !== owner) throw new Error("Not found");
+    await ctx.db.delete(expenseId);
   },
 });
 

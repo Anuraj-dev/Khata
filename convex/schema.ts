@@ -65,7 +65,16 @@ export default defineSchema({
     paidBy: v.string(),
     amount: v.number(),
     note: v.string(),
+    // Members sharing this expense. For equal splits this is the full list; for
+    // custom splits it's the members with a non-zero share.
     splitAmong: v.array(v.string()),
+    // Absent/"equal" = even division among splitAmong. "custom" = use `shares`
+    // (explicit paise per member). Optional so existing rows read as equal.
+    splitMode: v.optional(v.union(v.literal("equal"), v.literal("custom"))),
+    shares: v.optional(
+      v.array(v.object({ member: v.string(), amount: v.number() }))
+    ),
+    emoji: v.optional(v.string()),
     date: v.string(),
     ownerTokenIdentifier: v.string(),
     createdAt: v.number(),
