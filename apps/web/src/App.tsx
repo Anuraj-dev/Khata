@@ -13,17 +13,19 @@ import { ExpensesScreen } from "./screens/ExpensesScreen";
 import { TripsScreen } from "./screens/TripsScreen";
 import { InsightsScreen } from "./screens/InsightsScreen";
 import { SmsQueueScreen } from "./screens/SmsQueueScreen";
+import { SettingsScreen } from "./screens/SettingsScreen";
 import { useExpenseMutations } from "./hooks/useExpenseMutations";
 import { useRetryQueue } from "./hooks/useRetryQueue";
 import { useSmsPoller } from "./hooks/useSmsPoller";
 import { useDeepLinkAuth } from "./hooks/useDeepLinkAuth";
 import type { RetryPayload } from "./hooks/useRetryQueue";
-import { useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 
 type Toast = { kind: "error" | "info"; message: string };
 
 function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const onExpensesTab = location.pathname === "/";
 
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -61,6 +63,17 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
         >
           ₹ Khata
         </span>
+        <button
+          onClick={() => navigate("/settings")}
+          aria-label="Settings"
+          className="ml-auto p-1.5 -mr-1.5 active:opacity-60 transition-opacity"
+          style={{ color: "var(--color-text-secondary)", background: "none", border: "none" }}
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
+        </button>
       </header>
 
       {/* Toast */}
@@ -90,12 +103,13 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
               />
             }
           />
-          {/* SMS-derived UPI inbox is native-only; never expose SMS UI on web. */}
+          {/* SMS review queue is native-only; never expose SMS UI on web. */}
           {Capacitor.isNativePlatform() && (
-            <Route path="upi" element={<SmsQueueScreen />} />
+            <Route path="review" element={<SmsQueueScreen />} />
           )}
           <Route path="trips" element={<TripsScreen />} />
           <Route path="insights" element={<InsightsScreen />} />
+          <Route path="settings" element={<SettingsScreen showToast={showToast} />} />
           <Route path="*" element={<Outlet />} />
         </Routes>
       </main>

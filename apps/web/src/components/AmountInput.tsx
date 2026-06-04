@@ -13,17 +13,20 @@ type Props = {
 };
 
 export function AmountInput({ paise, onChange }: Props) {
+  // Entry is in whole rupees — typing "5" means ₹5, "50" means ₹50. No paise/
+  // decimals: nobody logging an expense wants to tap through 0.50. We still store
+  // and emit paise (rupees × 100) so the rest of the app is unchanged.
+  const rupees = Math.floor(paise / 100);
+
   function handleKey(key: string) {
     if (key === "⌫") {
-      const str = paise.toString().padStart(3, "0");
-      const next = str.slice(0, -1).padStart(1, "0");
-      onChange(parseInt(next, 10));
+      onChange(Math.floor(rupees / 10) * 100);
       return;
     }
-    const current = paise.toString();
-    const next = current + key;
-    if (next.length > 8) return;
-    onChange(parseInt(next, 10));
+    const nextStr = rupees === 0 ? key : `${rupees}${key}`;
+    const nextRupees = parseInt(nextStr, 10);
+    if (!Number.isFinite(nextRupees) || nextRupees > 9_999_999) return; // cap ~₹1cr
+    onChange(nextRupees * 100);
   }
 
   return (

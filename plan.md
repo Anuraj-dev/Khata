@@ -129,6 +129,26 @@
 - [x] `useSmsPoller` — confident parses (amount + direction) auto-log; ambiguous/unparseable bank SMS enqueue for manual review
 - [x] `smsPoller.ts` — fall back to SMS receive timestamp when no date in body
 
+### M3.2: SMS UX polish + data controls
+
+- [x] SMS expenses show the counterparty **name** (cleaned from VPA) as the title, with a subtle "auto" tag (no generic "UPI payment", no UPI brand logo)
+- [x] Better party extraction in `smsParser.ts` (`to/from <Name>`, VPA handles) + `cleanPartyName`
+- [x] Remove the dedicated UPI tab; surface unparseable bank SMS as a contextual "needs review" banner on the Expenses screen
+- [x] Clear-all-expenses with device confirmation: custom `Biometric` plugin (fingerprint / device PIN via `androidx.biometric`), typed-confirm fallback on web
+- [x] `convex/expenses.ts` — `clearAll` mutation (wipes the user's expenses + review queue)
+- [x] Settings screen + header gear entry
+
+## M5: Insights & Polish
+
+**Goal:** Charts, monthly view, long-term timeline.
+
+### Micro-steps
+
+- [x] Month dividers in the expense list so multi-month history stays scannable
+- [x] `convex/expenses.ts` — `listRange(start, end)` query for month aggregation
+- [x] `InsightsScreen` — month switcher, per-month spend/received totals, category breakdown bars, 6-month trend
+- [ ] Push notifications, deeper charts (follow-up)
+
 ---
 
 ## M4: Group Trip Splitter

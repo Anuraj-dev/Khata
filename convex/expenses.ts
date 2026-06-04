@@ -26,6 +26,20 @@ export const listRecent = query({
   },
 });
 
+// Inclusive date range [start, end] (ISO yyyy-mm-dd). Powers the Insights screen.
+export const listRange = query({
+  args: { start: v.string(), end: v.string() },
+  handler: async (ctx, { start, end }) => {
+    const owner = await requireTokenIdentifier(ctx);
+    return ctx.db
+      .query("expenses")
+      .withIndex("by_owner_date", (q) =>
+        q.eq("ownerTokenIdentifier", owner).gte("date", start).lte("date", end)
+      )
+      .collect();
+  },
+});
+
 export const addExpense = mutation({
   args: {
     clientId: v.string(),
@@ -79,6 +93,29 @@ export const updateExpense = mutation({
     const expense = await ctx.db.get(expenseId);
     if (!expense || expense.ownerTokenIdentifier !== owner) throw new Error("Not found");
     await ctx.db.patch(expenseId, { ...updates, updatedAt: Date.now() });
+  },
+});
+
+// Wipes every expense (and pending SMS review item) for the current user. Gated
+// behind device authentication on the client. Returns how many were removed.
+export const clearAll = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const owner = await requireTokenIdentifier(ctx);
+
+    const expenses = await ctx.db
+      .query("expenses")
+      .withIndex("by_owner", (q) => q.eq("ownerTokenIdentifier", owner))
+      .collect();
+    for (const e of expenses) await ctx.db.delete(e._id);
+
+    const queued = await ctx.db
+      .query("smsReviewQueue")
+      .withIndex("by_owner", (q) => q.eq("ownerTokenIdentifier", owner))
+      .collect();
+    for (const q of queued) await ctx.db.delete(q._id);
+
+    return { deleted: expenses.length };
   },
 });
 

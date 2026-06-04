@@ -11,19 +11,35 @@ export type ParsedSms = {
   date?: string; // ISO yyyy-mm-dd, when a date is present in the message body
 };
 
+// Currency-prefixed amount ("Rs.250", "INR 1,200.50", "₹49") is the reliable one.
 const AMOUNT_RE = /(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i;
+// Fallback for banks (e.g. SBI) that write "debited by 250.0" with no symbol.
+const AMOUNT_NEAR_KEYWORD_RE =
+  /(?:debited|credited|debit|credit|deducted|sent|paid|received|spent)\s+(?:by|with|for|of)?\s*(?:rs\.?|inr|₹)?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i;
 const UPI_REF_RE = /(?:upi\s*ref(?:erence)?\s*(?:no\.?|number)?|ref\s*no\.?)\s*[:\-]?\s*([0-9]{10,})/i;
 const DEBIT_KEYWORDS = /(?:debited|deducted|sent|paid|payment\s+of|transferred\s+to|spent)/i;
 const CREDIT_KEYWORDS = /(?:credited|received|added|deposited|refund)/i;
 
-// Party extraction: "to VPA/UPI ID xxx@xxx" or "from xxx@xxx"
-const PARTY_RE = /(?:to|from)\s+(?:vpa\s+)?([a-zA-Z0-9._\-@]+@[a-zA-Z0-9]+|[A-Z][A-Za-z\s]{2,30})/;
+// Party extraction is direction-aware: a debit's counterparty follows
+// "to/trf to/paid to/at" (the bank's own name often follows "From" on debits),
+// while a credit's counterparty follows "from". A name token runs until a
+// trailing keyword (on, ref, …), punctuation, or a number. VPA handles
+// (name@bank) are matched first since they're unambiguous.
+const DEBIT_PREP = "to|trf\\s+to|paid\\s+to|at";
+const CREDIT_PREP = "from";
+const partyTerminator = "(?=\\s+(?:on|ref|upi|dated|via|a\\/c|account|info|not|rs|inr|\\d)|[.,;:\\n]|$)";
+function vpaRe(prep: string) {
+  return new RegExp(`(?:${prep})\\s+(?:vpa\\s+)?([a-z0-9._\\-]+@[a-z]{2,})`, "i");
+}
+function nameRe(prep: string) {
+  return new RegExp(`(?:${prep})\\s+(?:vpa\\s+)?([A-Za-z][A-Za-z0-9 .&'\\-]{1,40}?)${partyTerminator}`, "i");
+}
 
 // Date formats common to Indian bank/UPI SMS:
 //   04-06-26, 04/06/2026, 04.06.26   (DD-MM-YY[YY])
-//   04-Jun-26, 04 Jun 2026           (DD-Mon-YY[YY])
+//   04-Jun-26, 04 Jun 2026, 02Jun26  (DD-Mon-YY[YY], separators optional)
 const NUMERIC_DATE_RE = /\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})\b/;
-const MONTH_NAME_DATE_RE = /\b(\d{1,2})[-/ ]([A-Za-z]{3})[A-Za-z]*[-/ ](\d{2,4})\b/;
+const MONTH_NAME_DATE_RE = /\b(\d{1,2})[-/ ]?([A-Za-z]{3})[A-Za-z]*[-/ ]?(\d{2,4})\b/;
 const MONTHS: Record<string, number> = {
   jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
   jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
@@ -77,7 +93,7 @@ export function categorizeSms(party: string | undefined, body: string): Category
 export function parseSms(sms: string): ParsedSms | null {
   const text = sms.trim();
 
-  const amountMatch = AMOUNT_RE.exec(text);
+  const amountMatch = AMOUNT_RE.exec(text) ?? AMOUNT_NEAR_KEYWORD_RE.exec(text);
   if (!amountMatch) return null;
   const amount = parseAmount(amountMatch);
   if (amount <= 0) return null;
@@ -91,8 +107,7 @@ export function parseSms(sms: string): ParsedSms | null {
   const refMatch = UPI_REF_RE.exec(text);
   const upiRef = refMatch?.[1];
 
-  const partyMatch = PARTY_RE.exec(text);
-  const party = partyMatch?.[1]?.trim();
+  const party = extractParty(text, direction);
 
   const date = parseSmsDate(text);
 
@@ -102,6 +117,36 @@ export function parseSms(sms: string): ParsedSms | null {
 function parseAmount(match: RegExpMatchArray): number {
   const raw = match[1].replace(/,/g, "");
   return Math.round(parseFloat(raw) * 100);
+}
+
+function extractParty(text: string, direction: "debit" | "credit"): string | undefined {
+  const prep = direction === "credit" ? CREDIT_PREP : DEBIT_PREP;
+  const vpa = vpaRe(prep).exec(text);
+  if (vpa) return cleanPartyName(vpa[1]);
+  const name = nameRe(prep).exec(text);
+  if (name) return cleanPartyName(name[1]);
+  return undefined;
+}
+
+// Turns a raw party token into a human label: drops the @bank from a VPA, splits
+// separators into words, and title-cases. "swiggy.stores@icici" -> "Swiggy Stores".
+export function cleanPartyName(raw: string): string | undefined {
+  let s = raw.trim();
+  const at = s.indexOf("@");
+  if (at > 0) s = s.slice(0, at);
+  s = s.replace(/[._\-]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!s) return undefined;
+  const words = s.split(" ");
+  const titleCase = (w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+  // A multi-word all-caps string is almost always a person's name ("ANURAJ
+  // SAIKIA" -> "Anuraj Saikia"). Single tokens stay as-is so brand/acronyms
+  // ("HDFC", "SWIGGY") aren't mangled.
+  if (words.length > 1 && s === s.toUpperCase()) {
+    return words.map(titleCase).join(" ");
+  }
+  return words
+    .map((w) => (w.length > 1 && w === w.toUpperCase() ? w : titleCase(w)))
+    .join(" ");
 }
 
 // Deterministic id so the same transaction is never logged twice, even when the

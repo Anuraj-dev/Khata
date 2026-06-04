@@ -19,6 +19,22 @@ const CATEGORY_COLOR: Record<ExpenseCategory, string> = {
   other: "var(--color-other)",
 };
 
+// Marks an entry that was captured automatically from a bank/UPI SMS — not a
+// brand badge, just a quiet "we logged this for you" cue.
+function AutoTag() {
+  return (
+    <span
+      className="flex items-center gap-0.5 shrink-0 rounded px-1 py-px text-[9px] font-semibold uppercase tracking-wide"
+      style={{ background: "var(--color-accent-subtle)", color: "var(--color-accent)" }}
+    >
+      <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+        <path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z" />
+      </svg>
+      auto
+    </span>
+  );
+}
+
 type Props = {
   expense: LocalExpense;
   onLongPress?: () => void;
@@ -52,19 +68,20 @@ export function ExpenseCard({ expense }: Props) {
 
       {/* Note + meta */}
       <div className="flex flex-col flex-1 min-w-0 gap-0.5">
-        <span
-          className="text-sm font-medium truncate"
-          style={{ color: "var(--color-text-primary)" }}
-        >
-          {expense.note || expense.category}
-        </span>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span
+            className="text-sm font-medium truncate"
+            style={{ color: "var(--color-text-primary)" }}
+          >
+            {expense.note || expense.category}
+          </span>
+          {expense.source === "sms" && <AutoTag />}
+        </div>
         <span
           className="text-xs truncate"
           style={{ color: "var(--color-text-muted)", fontFamily: "var(--font-mono)" }}
         >
-          {expense.party ? `${expense.party} · ` : ""}
           {timeStr}
-          {expense.source === "sms" ? " · SMS" : ""}
         </span>
       </div>
 
