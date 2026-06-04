@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Routes, Route, Outlet } from "react-router";
+import { Routes, Route, Navigate } from "react-router";
 import { useConvexAuth } from "convex/react";
 import { Capacitor } from "@capacitor/core";
 import { ConvexClientProvider } from "./lib/convex";
@@ -40,7 +40,7 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
   }
 
   // Retry queue — noop runner until we wire trip mutations in M4
-  const runRetryPayload = useCallback(async (_payload: RetryPayload) => {}, []);
+  const runRetryPayload = useCallback(async (_payload: RetryPayload) => { }, []);
   const { enqueueRetry } = useRetryQueue({
     runRetryPayload,
     onRetryComplete: (msg) => showToast({ kind: "info", message: msg }),
@@ -125,7 +125,9 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
           <Route path="join/:token" element={<JoinTripScreen />} />
           <Route path="insights" element={<InsightsScreen />} />
           <Route path="settings" element={<SettingsScreen showToast={showToast} />} />
-          <Route path="*" element={<Outlet />} />
+          {/* Unknown path (e.g. a stale PWA shell that predates a route) →
+              home, never a blank screen. */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
 

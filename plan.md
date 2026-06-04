@@ -204,6 +204,20 @@
 
 **Files:** `convex/schema.ts`, `convex/tripAccess.ts`, `convex/tripShares.ts`, `convex/trips.ts`, `convex/settlements.ts`, `apps/web/src/components/ShareTripSheet.tsx`, `apps/web/src/screens/JoinTripScreen.tsx`, `apps/web/src/screens/TripDetailScreen.tsx`, `apps/web/src/screens/TripsScreen.tsx`, `apps/web/src/App.tsx`, `apps/web/.env.example`.
 
+### M6.1: Post-launch fixes + member management 🔨
+
+Real-device testing of M6 surfaced two issues plus a missing capability:
+
+**1. Blank/black screen fix.** The router's catch-all `*` route rendered an empty `<Outlet/>` → any unmatched path (e.g. a stale PWA shell that predates the `/join` route) showed a black screen. Now `*` redirects to `/`. The join screen also auto-opens the trip for the **owner** (same account as the share) instead of parking on an "Open trip" button that read as a dead-end.
+
+**2. Open invites in-app (in-app QR scanner).** Android App Links were considered but **rejected**: they need a pinned signing key (assetlinks SHA-256 must match the APK cert) and the CI debug key is ephemeral — fragile for sharing debug APKs to testers. Instead, an **in-app web-camera scanner** (`qr-scanner` via getUserMedia, works in PWA + WebView, no native plugin) on the Trips screen decodes the QR and navigates internally to `/join/{token}` — stays in-app, no browser, no keys. Scanning with the system camera still opens the deployed URL in Chrome (existing fallback). Needs `android.permission.CAMERA` (Capacitor brokers the runtime prompt). Custom `khata://` filter stays for OAuth.
+
+> Aside (not done): the CI generating a fresh debug key per build means testers can't update an APK over a previous install (signature mismatch → must uninstall first). Pinning a committed debug keystore would fix that; deferred.
+
+**3. Add / remove participants after trip creation.** `addTripMember` / `removeTripMember` mutations (owner-only). Removal is blocked when the member appears on any expense (`paidBy`/`splitAmong`/`shares`) or settlement, so balances can't silently corrupt; removing also drops any viewer's `tripMemberLink` for that slot. UI: a "Manage members" sheet opened from the trip detail (owner-only, hidden when settled/viewer), mirroring the create-trip member chips.
+
+**Files:** `convex/trips.ts`, `apps/web/src/components/ManageMembersSheet.tsx`, `apps/web/src/components/ScanInviteSheet.tsx`, `apps/web/src/lib/joinLink.ts` (`parseJoinToken`), `apps/web/src/screens/TripsScreen.tsx`, `apps/web/src/screens/TripDetailScreen.tsx`, `apps/web/src/screens/JoinTripScreen.tsx`, `apps/web/src/App.tsx`, `apps/web/android/app/src/main/AndroidManifest.xml`.
+
 ---
 
 ## M4: Group Trip Splitter

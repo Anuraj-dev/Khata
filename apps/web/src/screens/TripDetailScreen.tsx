@@ -7,6 +7,7 @@ import { formatRupees } from "../lib/dates";
 import { computeBalances, applyPayments, simplifyDebts } from "../lib/tripBalances";
 import { AddTripExpenseDrawer } from "../components/AddTripExpenseDrawer";
 import { ShareTripSheet } from "../components/ShareTripSheet";
+import { ManageMembersSheet } from "../components/ManageMembersSheet";
 
 export function TripDetailScreen() {
   const { tripId } = useParams();
@@ -24,6 +25,7 @@ export function TripDetailScreen() {
   const [editing, setEditing] = useState<Doc<"tripExpenses"> | null>(null);
   const [busy, setBusy] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
 
   if (trip === undefined || expenses === undefined || payments === undefined) {
     return (
@@ -52,6 +54,19 @@ export function TripDetailScreen() {
   const allCleared = expenses.length > 0 && transfers.length === 0;
   // Can only close once nobody owes anyone (every suggested transfer ticked paid).
   const canClose = transfers.length === 0;
+  // Members already referenced by an expense or payment can't be removed (it'd
+  // distort the balances) — used to disable the × in the Manage members sheet.
+  const usedMembers = new Set<string>();
+  for (const e of expenses) {
+    usedMembers.add(e.paidBy);
+    e.splitAmong.forEach((m) => usedMembers.add(m));
+    e.shares?.forEach((s) => usedMembers.add(s.member));
+  }
+  for (const p of payments) {
+    usedMembers.add(p.fromMember);
+    usedMembers.add(p.toMember);
+  }
+  const canManageMembers = !isSettled && !isViewer;
 
   function openAdd() {
     setEditing(null);
@@ -94,9 +109,20 @@ export function TripDetailScreen() {
           <h2 className="text-base font-semibold truncate" style={{ color: "var(--color-text-primary)" }}>
             {trip.name}
           </h2>
-          <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-            {trip.members.join(", ")}
-          </span>
+          {canManageMembers ? (
+            <button
+              onClick={() => setMembersOpen(true)}
+              className="text-left text-xs truncate active:opacity-60 transition-opacity"
+              style={{ background: "none", border: "none", color: "var(--color-text-muted)", padding: 0 }}
+            >
+              {trip.members.join(", ")}
+              <span style={{ color: "var(--color-accent)", fontWeight: 600 }}> · Manage</span>
+            </button>
+          ) : (
+            <span className="text-xs truncate" style={{ color: "var(--color-text-muted)" }}>
+              {trip.members.join(", ")}
+            </span>
+          )}
         </div>
         {isSettled && (
           <span className="text-xs rounded-full px-2 py-0.5" style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}>
@@ -275,6 +301,14 @@ export function TripDetailScreen() {
         onClose={() => setShareOpen(false)}
         tripId={id}
         tripName={trip.name}
+      />
+
+      <ManageMembersSheet
+        open={membersOpen}
+        onClose={() => setMembersOpen(false)}
+        tripId={id}
+        members={trip.members}
+        usedMembers={usedMembers}
       />
     </div>
   );

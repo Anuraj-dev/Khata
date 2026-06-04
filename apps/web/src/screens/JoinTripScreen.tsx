@@ -23,6 +23,15 @@ export function JoinTripScreen() {
     if (preview?.valid && preview.alreadyJoinedAs) setMember(preview.alreadyJoinedAs);
   }, [preview]);
 
+  // If the link is opened by the trip's own owner (same account that shared it),
+  // there's nothing to join — go straight to the trip instead of parking on a
+  // dead-end "Open trip" screen.
+  useEffect(() => {
+    if (preview?.valid && preview.isOwner) {
+      navigate(`/trips/${preview.tripId}`, { replace: true });
+    }
+  }, [preview, navigate]);
+
   async function join() {
     if (!token || !member || joining) return;
     setJoining(true);
