@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/Anuraj-dev/Khata/compare/v0.2.0...v0.3.0) (2026-06-04)
+
+
+### Features
+
+* **web:** custom categories + scroll/keyboard fixes ([93ef6e3](https://github.com/Anuraj-dev/Khata/commit/93ef6e328934bfc2c478050d8250c8c52d12291c))
+* **web:** custom categories, scrollable expense list, trips keyboard fix ([61a1d91](https://github.com/Anuraj-dev/Khata/commit/61a1d91585b04c5c9b3e42ac13432a35d153ea70))
+
 ## [0.2.0](https://github.com/Anuraj-dev/Khata/compare/v0.1.0...v0.2.0) (2026-06-04)
 
 
