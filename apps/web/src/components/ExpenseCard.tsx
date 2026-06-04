@@ -19,18 +19,14 @@ const CATEGORY_COLOR: Record<ExpenseCategory, string> = {
   other: "var(--color-other)",
 };
 
-// Marks an entry that was captured automatically from a bank/UPI SMS — not a
-// brand badge, just a quiet "we logged this for you" cue.
-function AutoTag() {
+// Marks an entry that was captured automatically from a bank/UPI alert.
+function UpiTag() {
   return (
     <span
-      className="flex items-center gap-0.5 shrink-0 rounded px-1 py-px text-[9px] font-semibold uppercase tracking-wide"
+      className="shrink-0 rounded px-1.5 py-px text-[9px] font-bold uppercase tracking-wide"
       style={{ background: "var(--color-accent-subtle)", color: "var(--color-accent)" }}
     >
-      <svg width="8" height="8" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-        <path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4z" />
-      </svg>
-      auto
+      UPI
     </span>
   );
 }
@@ -75,7 +71,7 @@ export function ExpenseCard({ expense }: Props) {
           >
             {expense.note || expense.category}
           </span>
-          {expense.source === "sms" && <AutoTag />}
+          {expense.source === "sms" && <UpiTag />}
         </div>
         <span
           className="text-xs truncate"

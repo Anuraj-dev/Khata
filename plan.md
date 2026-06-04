@@ -155,7 +155,19 @@
 
 **Goal:** Create trips, log shared expenses, see who owes whom, mark settled.
 
-*(Expand into micro-steps when M3 is complete)*
+### Micro-steps
+
+- [x] `lib/tripBalances.ts` — equal-split net balances (remainder-paise spread) + greedy min-cash-flow `simplifyDebts`
+- [x] `components/Sheet.tsx` — reusable bottom sheet (extracted from AddExpenseDrawer pattern)
+- [x] `components/CreateTripDrawer.tsx` — name + member chips (seeded with "You")
+- [x] `components/AddTripExpenseDrawer.tsx` — amount, note, paid-by, split-among multi-select, date
+- [x] `screens/TripsScreen.tsx` — trip list + create + empty state (replaces stub)
+- [x] `screens/TripDetailScreen.tsx` — balances, settle-up suggestions, expense list, mark-settled
+- [x] `App.tsx` — `/trips/:tripId` nested route
+- [x] Uses existing `convex/trips.ts` + `convex/settlements.ts` (createTrip, addTripExpense, saveSettlements, settleTrip)
+
+### Notes
+- SMS capture limitation accepted (MVP): banks drop SMS for small UPI txns (SBI especially; HDFC < ₹100). Chose **Path A** — keep SMS auto-log + fast manual quick-add with an optional **date** field for missed/past entries. Email/Gmail capture (Path B) deferred.
 
 ---
 

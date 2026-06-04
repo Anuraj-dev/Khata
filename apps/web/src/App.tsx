@@ -11,6 +11,7 @@ import { FAB } from "./components/FAB";
 import { AddExpenseDrawer } from "./components/AddExpenseDrawer";
 import { ExpensesScreen } from "./screens/ExpensesScreen";
 import { TripsScreen } from "./screens/TripsScreen";
+import { TripDetailScreen } from "./screens/TripDetailScreen";
 import { InsightsScreen } from "./screens/InsightsScreen";
 import { SmsQueueScreen } from "./screens/SmsQueueScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
@@ -108,6 +109,7 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
             <Route path="review" element={<SmsQueueScreen />} />
           )}
           <Route path="trips" element={<TripsScreen />} />
+          <Route path="trips/:tripId" element={<TripDetailScreen />} />
           <Route path="insights" element={<InsightsScreen />} />
           <Route path="settings" element={<SettingsScreen showToast={showToast} />} />
           <Route path="*" element={<Outlet />} />
