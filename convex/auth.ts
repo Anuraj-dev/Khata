@@ -19,7 +19,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
     // Convex auto-provides CONVEX_SITE_URL (the .convex.site origin) at runtime.
     baseURL: process.env.CONVEX_SITE_URL,
     database: authComponent.adapter(ctx),
-    trustedOrigins: [siteUrl, prodUrl, "http://localhost:5173"],
+    trustedOrigins: [siteUrl, prodUrl, "http://localhost:5173", "https://localhost"],
     socialProviders: {
       google: {
         clientId: process.env.GOOGLE_OAUTH_CLIENT_ID!,
