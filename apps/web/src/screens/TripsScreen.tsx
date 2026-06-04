@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
-import type { Doc } from "@convex/_generated/dataModel";
 import { CreateTripDrawer } from "../components/CreateTripDrawer";
 
 export function TripsScreen() {
@@ -47,7 +46,7 @@ export function TripsScreen() {
 
       {trips && trips.length > 0 && (
         <div className="flex flex-col">
-          {trips.map((trip: Doc<"trips">) => (
+          {trips.map((trip) => (
             <button
               key={trip._id}
               onClick={() => navigate(`/trips/${trip._id}`)}
@@ -68,6 +67,11 @@ export function TripsScreen() {
                   {trip.members.length} members
                 </span>
               </div>
+              {trip.role === "viewer" && (
+                <span className="text-xs rounded-full px-2 py-0.5" style={{ background: "var(--color-accent-subtle)", color: "var(--color-accent)" }}>
+                  Shared
+                </span>
+              )}
               {trip.status === "settled" ? (
                 <span className="text-xs rounded-full px-2 py-0.5" style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}>
                   Settled

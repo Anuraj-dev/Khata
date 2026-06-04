@@ -6,6 +6,7 @@ import type { Id, Doc } from "@convex/_generated/dataModel";
 import { formatRupees } from "../lib/dates";
 import { computeBalances, applyPayments, simplifyDebts } from "../lib/tripBalances";
 import { AddTripExpenseDrawer } from "../components/AddTripExpenseDrawer";
+import { ShareTripSheet } from "../components/ShareTripSheet";
 
 export function TripDetailScreen() {
   const { tripId } = useParams();
@@ -22,6 +23,7 @@ export function TripDetailScreen() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Doc<"tripExpenses"> | null>(null);
   const [busy, setBusy] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   if (trip === undefined || expenses === undefined || payments === undefined) {
     return (
@@ -42,6 +44,8 @@ export function TripDetailScreen() {
   }
 
   const isSettled = trip.status === "settled";
+  // Viewers (people the trip was shared with) get a strictly read-only view.
+  const isViewer = trip.role === "viewer";
   const rawNet = computeBalances(trip.members, expenses);
   const net = applyPayments(rawNet, payments);
   const transfers = simplifyDebts(net);
@@ -54,7 +58,7 @@ export function TripDetailScreen() {
     setDrawerOpen(true);
   }
   function openEdit(e: Doc<"tripExpenses">) {
-    if (isSettled) return;
+    if (isSettled || isViewer) return;
     setEditing(e);
     setDrawerOpen(true);
   }
@@ -99,7 +103,23 @@ export function TripDetailScreen() {
             Settled
           </span>
         )}
+        {!isViewer && (
+          <button
+            onClick={() => setShareOpen(true)}
+            aria-label="Share trip"
+            className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold active:opacity-70 transition-opacity"
+            style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-default)", color: "var(--color-text-primary)" }}
+          >
+            Share
+          </button>
+        )}
       </div>
+
+      {isViewer && (
+        <div className="mx-4 mt-1 mb-1 flex items-center gap-2 rounded-xl px-3 py-2 text-xs" style={{ background: "var(--color-accent-subtle)", color: "var(--color-accent)" }}>
+          👁 Shared with you · read-only{trip.viewerMember ? ` · you're ${trip.viewerMember}` : ""}
+        </div>
+      )}
 
       {/* Balances */}
       <Section title="Balances">
@@ -129,7 +149,7 @@ export function TripDetailScreen() {
               <span className="text-sm tabular-nums shrink-0" style={{ color: "var(--color-accent)", fontFamily: "var(--font-mono)" }}>
                 {formatRupees(t.amount)}
               </span>
-              {!isSettled && (
+              {!isSettled && !isViewer && (
                 <button
                   onClick={() => void markPaid(t.from, t.to, t.amount)}
                   disabled={busy}
@@ -161,7 +181,7 @@ export function TripDetailScreen() {
               <span className="text-sm tabular-nums shrink-0" style={{ color: "var(--color-credit)", fontFamily: "var(--font-mono)" }}>
                 ✓ {formatRupees(p.amount)}
               </span>
-              {!isSettled && (
+              {!isSettled && !isViewer && (
                 <button
                   onClick={() => void undoPayment(p._id)}
                   disabled={busy}
@@ -186,7 +206,7 @@ export function TripDetailScreen() {
             <button
               key={e._id}
               onClick={() => openEdit(e)}
-              disabled={isSettled}
+              disabled={isSettled || isViewer}
               className="flex w-full items-center gap-3 px-4 py-3 text-left active:opacity-70 transition-opacity disabled:active:opacity-100"
               style={{ borderBottom: "1px solid var(--color-border-subtle)", background: "none" }}
             >
@@ -208,7 +228,7 @@ export function TripDetailScreen() {
       </Section>
 
       {/* Actions */}
-      {!isSettled && (
+      {!isSettled && !isViewer && (
         <div className="flex flex-col gap-2 px-4 mt-5">
           <button
             onClick={openAdd}
@@ -248,6 +268,13 @@ export function TripDetailScreen() {
         tripId={id}
         members={trip.members}
         editing={editing}
+      />
+
+      <ShareTripSheet
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        tripId={id}
+        tripName={trip.name}
       />
     </div>
   );

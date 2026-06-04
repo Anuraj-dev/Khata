@@ -95,6 +95,32 @@ export default defineSchema({
     .index("by_trip", ["tripId"])
     .index("by_owner_trip", ["ownerTokenIdentifier", "tripId"]),
 
+  // A time-limited invite to view a trip read-only. The token travels in the
+  // QR / link; one active share per trip (regenerating replaces it).
+  tripShares: defineTable({
+    tripId: v.id("trips"),
+    token: v.string(),
+    ownerTokenIdentifier: v.string(),
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_token", ["token"])
+    .index("by_owner_trip", ["ownerTokenIdentifier", "tripId"]),
+
+  // Maps a free-text member slot in a trip to the Khata account that claimed it
+  // via an invite. The linked viewer reads the trip (owner's rows) read-only.
+  tripMemberLinks: defineTable({
+    tripId: v.id("trips"),
+    member: v.string(),
+    viewerTokenIdentifier: v.string(),
+    ownerTokenIdentifier: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_trip", ["tripId"])
+    .index("by_viewer", ["viewerTokenIdentifier"])
+    .index("by_trip_viewer", ["tripId", "viewerTokenIdentifier"])
+    .index("by_trip_member", ["tripId", "member"]),
+
   smsReviewQueue: defineTable({
     rawSms: v.string(),
     parsedAmount: v.optional(v.number()),

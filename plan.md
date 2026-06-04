@@ -175,15 +175,34 @@
 
 **Files:** `convex/trips.ts` (`myTripBalances` + `netForMember`), `apps/web/src/components/TripsSummary.tsx`, `apps/web/src/screens/ExpensesScreen.tsx`.
 
-### M6 (proposed): Read-only trip sharing
+### M6: Read-only trip sharing 🔨
 
-**Agreed model (from discussion):**
+**Agreed model:**
 - Member slots stay free-text for non-Khata people; a slot can be linked to a Khata user.
-- **QR/invite link expires after 1 week** — after expiry the trip can't be joined via that code (re-share to re-open).
-- Linked viewer gets **read-only forever** (only the owner edits expenses).
-- Home-screen "you owe ₹X" card aggregates the viewer's owed balances across shared trips; **a row disappears once that debt is settled** (synced with the trip).
+- **Invite link/QR expires after 1 week** — after expiry the trip can't be joined via that code (regenerate to re-open).
+- Linked viewer gets **read-only forever** (only the owner edits expenses/payments).
+- Home-screen owed card (the existing `TripsSummary`) aggregates the viewer's balance across shared trips; **a row disappears once settled**.
 
-**Backend deltas (not built):** `tripShares` table (tripId → viewerToken, role: "viewer", expiresAt); share-token issue/redeem mutations with expiry check; trip queries that also return trips shared *to* you; cross-trip owed-balance aggregation for the home card; map a member slot → linked account.
+**Transport decided:** owner sees an on-screen QR + copyable link (`{VITE_APP_URL}/join/{token}`); recipient opens it with their phone camera (no in-app scanner). Recipient must **sign in** and **pick which member slot is them** → that maps the slot to their account, read-only forever.
+
+**Micro-steps:**
+
+*Backend*
+- [ ] Schema: `tripShares` (tripId, token, ownerToken, expiresAt) + `tripMemberLinks` (tripId, member, viewerToken, ownerToken) with `by_token`/`by_viewer`/`by_trip_viewer`/`by_trip_member` indexes.
+- [ ] `tripAccess.ts` — `resolveTripAccess(ctx, tripId, caller)` → `{trip, role: owner|viewer, viewerMember}` or null (owner = "You"; viewer via link).
+- [ ] `tripShares.ts` — `getOrCreateShare({tripId, regenerate?})` (owner; reuse unexpired, else mint, 7-day expiry); `previewShare({token})` (any auth; trip name + members + already-claimed slots, expiry check); `redeemShare({token, member})` (validate token/expiry, member ∈ trip & ≠ "You", slot not taken, upsert link).
+- [ ] `trips.ts` — `getTrip`/`listTripExpenses` use `resolveTripAccess` and read the **owner's** rows; `getTrip` returns `role`/`viewerMember`. `listTrips` + `myTripBalances` also include trips shared *to* you (viewer net for their slot).
+- [ ] `settlements.ts` — `listByTrip` allows viewer read via `resolveTripAccess`.
+
+*Frontend*
+- [ ] `components/ShareTripSheet.tsx` — owner: QR (`qrcode.react`) + link + copy + expiry + regenerate.
+- [ ] `screens/JoinTripScreen.tsx` — preview → pick member radio → redeem → go to trip; handles invalid/expired.
+- [ ] `App.tsx` — `/join/:token` route; capture token to localStorage pre-auth + resume after sign-in.
+- [ ] `TripDetailScreen` — viewer = read-only (hide add/edit/mark-paid/settle, show "Shared · read-only" banner); owner gets a Share button.
+- [ ] `TripsScreen` — show shared-to-me trips with a "Shared" badge.
+- [ ] `.env.example` — add `VITE_APP_URL` (deployed web origin used to build invite links; falls back to `window.location.origin`).
+
+**Files:** `convex/schema.ts`, `convex/tripAccess.ts`, `convex/tripShares.ts`, `convex/trips.ts`, `convex/settlements.ts`, `apps/web/src/components/ShareTripSheet.tsx`, `apps/web/src/screens/JoinTripScreen.tsx`, `apps/web/src/screens/TripDetailScreen.tsx`, `apps/web/src/screens/TripsScreen.tsx`, `apps/web/src/App.tsx`, `apps/web/.env.example`.
 
 ---
 

@@ -17,6 +17,8 @@ import type * as http from "../http.js";
 import type * as index from "../index.js";
 import type * as settlements from "../settlements.js";
 import type * as smsQueue from "../smsQueue.js";
+import type * as tripAccess from "../tripAccess.js";
+import type * as tripShares from "../tripShares.js";
 import type * as trips from "../trips.js";
 import type * as users from "../users.js";
 
@@ -36,6 +38,8 @@ declare const fullApi: ApiFromModules<{
   index: typeof index;
   settlements: typeof settlements;
   smsQueue: typeof smsQueue;
+  tripAccess: typeof tripAccess;
+  tripShares: typeof tripShares;
   trips: typeof trips;
   users: typeof users;
 }>;

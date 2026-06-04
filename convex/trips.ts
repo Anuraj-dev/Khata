@@ -1,45 +1,68 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireTokenIdentifier } from "./authHelpers";
+import { resolveTripAccess } from "./tripAccess";
+import type { Doc, Id } from "./_generated/dataModel";
 
+// Returns trips the caller owns plus trips shared *to* them (read-only), each
+// tagged with the caller's role and, for shared trips, which member they are.
 export const listTrips = query({
   args: { status: v.optional(v.union(v.literal("active"), v.literal("settled"))) },
   handler: async (ctx, { status }) => {
-    const owner = await requireTokenIdentifier(ctx);
-    if (status) {
-      return ctx.db
-        .query("trips")
-        .withIndex("by_owner_status", (q) =>
-          q.eq("ownerTokenIdentifier", owner).eq("status", status)
-        )
-        .order("desc")
-        .collect();
-    }
-    return ctx.db
-      .query("trips")
-      .withIndex("by_owner", (q) => q.eq("ownerTokenIdentifier", owner))
-      .order("desc")
+    const caller = await requireTokenIdentifier(ctx);
+
+    const owned = status
+      ? await ctx.db
+          .query("trips")
+          .withIndex("by_owner_status", (q) =>
+            q.eq("ownerTokenIdentifier", caller).eq("status", status)
+          )
+          .order("desc")
+          .collect()
+      : await ctx.db
+          .query("trips")
+          .withIndex("by_owner", (q) => q.eq("ownerTokenIdentifier", caller))
+          .order("desc")
+          .collect();
+
+    const links = await ctx.db
+      .query("tripMemberLinks")
+      .withIndex("by_viewer", (q) => q.eq("viewerTokenIdentifier", caller))
       .collect();
+    const shared = [];
+    for (const link of links) {
+      const trip = await ctx.db.get(link.tripId);
+      if (!trip) continue;
+      if (status && trip.status !== status) continue;
+      shared.push({ ...trip, role: "viewer" as const, viewerMember: link.member });
+    }
+
+    const ownedTagged = owned.map((t) => ({ ...t, role: "owner" as const, viewerMember: "You" }));
+    return [...ownedTagged, ...shared].sort((a, b) => b.createdAt - a.createdAt);
   },
 });
 
 export const getTrip = query({
   args: { tripId: v.id("trips") },
   handler: async (ctx, { tripId }) => {
-    const owner = await requireTokenIdentifier(ctx);
-    const trip = await ctx.db.get(tripId);
-    if (!trip || trip.ownerTokenIdentifier !== owner) return null;
-    return trip;
+    const caller = await requireTokenIdentifier(ctx);
+    const access = await resolveTripAccess(ctx, tripId, caller);
+    if (!access) return null;
+    return { ...access.trip, role: access.role, viewerMember: access.viewerMember };
   },
 });
 
 export const listTripExpenses = query({
   args: { tripId: v.id("trips") },
   handler: async (ctx, { tripId }) => {
-    const owner = await requireTokenIdentifier(ctx);
+    const caller = await requireTokenIdentifier(ctx);
+    const access = await resolveTripAccess(ctx, tripId, caller);
+    if (!access) return [];
     return ctx.db
       .query("tripExpenses")
-      .withIndex("by_owner_trip", (q) => q.eq("ownerTokenIdentifier", owner).eq("tripId", tripId))
+      .withIndex("by_owner_trip", (q) =>
+        q.eq("ownerTokenIdentifier", access.trip.ownerTokenIdentifier).eq("tripId", tripId)
+      )
       .order("desc")
       .collect();
   },
@@ -89,33 +112,49 @@ function netForMember(
   return net[member] ?? 0;
 }
 
-// Home-screen summary: for each active trip, how much "You" are owed (positive)
-// or owe (negative). Trips where you're settled up are omitted by the client.
+// Home-screen summary: for each active trip — owned or shared to you — how much
+// you are owed (positive) or owe (negative), from your own member slot's view.
+// Settled trips are filtered out by the client.
 export const myTripBalances = query({
   args: {},
   handler: async (ctx) => {
-    const owner = await requireTokenIdentifier(ctx);
-    const trips = await ctx.db
-      .query("trips")
-      .withIndex("by_owner_status", (q) =>
-        q.eq("ownerTokenIdentifier", owner).eq("status", "active")
-      )
-      .order("desc")
-      .collect();
+    const caller = await requireTokenIdentifier(ctx);
 
-    const out: { tripId: typeof trips[number]["_id"]; name: string; net: number }[] = [];
-    for (const trip of trips) {
+    type Row = { tripId: Id<"trips">; name: string; net: number; role: "owner" | "viewer" };
+    const out: Row[] = [];
+
+    async function balanceFor(trip: Doc<"trips">, member: string, role: "owner" | "viewer") {
       const expenses = await ctx.db
         .query("tripExpenses")
-        .withIndex("by_owner_trip", (q) => q.eq("ownerTokenIdentifier", owner).eq("tripId", trip._id))
+        .withIndex("by_owner_trip", (q) =>
+          q.eq("ownerTokenIdentifier", trip.ownerTokenIdentifier).eq("tripId", trip._id)
+        )
         .collect();
       const payments = await ctx.db
         .query("settlements")
-        .withIndex("by_owner_trip", (q) => q.eq("ownerTokenIdentifier", owner).eq("tripId", trip._id))
+        .withIndex("by_owner_trip", (q) =>
+          q.eq("ownerTokenIdentifier", trip.ownerTokenIdentifier).eq("tripId", trip._id)
+        )
         .collect();
-      const net = netForMember(SELF, trip.members, expenses, payments);
-      out.push({ tripId: trip._id, name: trip.name, net });
+      out.push({ tripId: trip._id, name: trip.name, net: netForMember(member, trip.members, expenses, payments), role });
     }
+
+    const owned = await ctx.db
+      .query("trips")
+      .withIndex("by_owner_status", (q) => q.eq("ownerTokenIdentifier", caller).eq("status", "active"))
+      .collect();
+    for (const trip of owned) await balanceFor(trip, SELF, "owner");
+
+    const links = await ctx.db
+      .query("tripMemberLinks")
+      .withIndex("by_viewer", (q) => q.eq("viewerTokenIdentifier", caller))
+      .collect();
+    for (const link of links) {
+      const trip = await ctx.db.get(link.tripId);
+      if (!trip || trip.status !== "active") continue;
+      await balanceFor(trip, link.member, "viewer");
+    }
+
     return out;
   },
 });
