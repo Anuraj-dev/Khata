@@ -6,6 +6,7 @@ node_modules/
 dist/
 .expo/
 *.log
+*.tsbuildinfo
 .DS_Store
 android/
 ios/

@@ -1,0 +1,68 @@
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@500&display=swap");
+@import "tailwindcss";
+
+:root {
+  --color-bg: #0a0a0b;
+  --color-surface: #111113;
+  --color-surface-elevated: #18181b;
+
+  --color-accent: #f59e0b;
+  --color-accent-dim: #92400e;
+  --color-accent-subtle: #1c1508;
+
+  --color-success: #22c55e;
+  --color-success-dim: #14532d;
+  --color-warning: #f59e0b;
+  --color-error: #ef4444;
+  --color-error-dim: #7f1d1d;
+  --color-credit: #22c55e;
+  --color-debit: #ef4444;
+
+  --color-text-primary: #fafafa;
+  --color-text-secondary: #a1a1aa;
+  --color-text-muted: #52525b;
+
+  --color-border-subtle: #27272a;
+  --color-border-default: #3f3f46;
+
+  --color-food: #fb923c;
+  --color-travel: #60a5fa;
+  --color-shopping: #a78bfa;
+  --color-bills: #f472b6;
+  --color-health: #34d399;
+  --color-other: #94a3b8;
+
+  --font-sans: "Geist", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+#root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Safe area padding for PWA on iOS */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}

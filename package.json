@@ -6,13 +6,26 @@
     "apps/*"
   ],
   "scripts": {
+    "web:dev": "bun run --cwd apps/web dev",
+    "web:build": "bun run --cwd apps/web build",
+    "web:preview": "bun run --cwd apps/web preview",
+    "web:typecheck": "bun run --cwd apps/web typecheck",
     "mobile:start": "bun run --cwd apps/mobile start",
+    "mobile:start:tunnel": "bun run --cwd apps/mobile start:tunnel",
     "mobile:android": "bun run --cwd apps/mobile android",
-    "mobile:ios": "bun run --cwd apps/mobile ios",
-    "lint": "bun run --cwd apps/mobile lint",
-    "test": "bun run --cwd apps/mobile test"
+    "mobile:ios": "bun run --cwd apps/mobile ios"
+  },
+  "dependencies": {
+    "@convex-dev/better-auth": "^0.11.4",
+    "better-auth": "1.5.3",
+    "convex": "^1.34.1"
   },
   "devDependencies": {
+    "@types/node": "^22",
     "typescript": "~5.9.2"
+  },
+  "overrides": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
   }
 }

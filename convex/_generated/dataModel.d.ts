@@ -8,108 +8,53 @@
  * @module
  */
 
+import type {
+  DataModelFromSchemaDefinition,
+  DocumentByName,
+  TableNamesInDataModel,
+  SystemTableNames,
+} from "convex/server";
 import type { GenericId } from "convex/values";
-import type { SystemTableNames } from "convex/server";
+import schema from "../schema.js";
 
-export type TableNames =
-  | "users"
-  | "expenses"
-  | "trips"
-  | "tripExpenses"
-  | "settlements"
-  | "smsReviewQueue";
+/**
+ * The names of all of your Convex tables.
+ */
+export type TableNames = TableNamesInDataModel<DataModel>;
 
+/**
+ * The type of a document stored in Convex.
+ *
+ * @typeParam TableName - A string literal type of the table name (like "users").
+ */
+export type Doc<TableName extends TableNames> = DocumentByName<
+  DataModel,
+  TableName
+>;
+
+/**
+ * An identifier for a document in Convex.
+ *
+ * Convex documents are uniquely identified by their `Id`, which is accessible
+ * on the `_id` field. To learn more, see [Document IDs](https://docs.convex.dev/using/document-ids).
+ *
+ * Documents can be loaded using `db.get(tableName, id)` in query and mutation functions.
+ *
+ * IDs are just strings at runtime, but this type can be used to distinguish them from other
+ * strings when type checking.
+ *
+ * @typeParam TableName - A string literal type of the table name (like "users").
+ */
 export type Id<TableName extends TableNames | SystemTableNames> =
   GenericId<TableName>;
 
-export type Doc<TableName extends TableNames> = TableName extends "expenses"
-  ? {
-      _id: Id<"expenses">;
-      _creationTime: number;
-      clientId: string;
-      amount: number;
-      note: string;
-      category: "food" | "travel" | "shopping" | "bills" | "health" | "other";
-      source: "manual" | "sms";
-      direction: "debit" | "credit";
-      upiRef?: string;
-      party?: string;
-      date: string;
-      ownerTokenIdentifier: string;
-      createdAt: number;
-      updatedAt: number;
-    }
-  : TableName extends "trips"
-  ? {
-      _id: Id<"trips">;
-      _creationTime: number;
-      clientId: string;
-      name: string;
-      members: string[];
-      startDate?: string;
-      endDate?: string;
-      status: "active" | "settled";
-      ownerTokenIdentifier: string;
-      createdAt: number;
-      updatedAt: number;
-    }
-  : TableName extends "tripExpenses"
-  ? {
-      _id: Id<"tripExpenses">;
-      _creationTime: number;
-      clientId: string;
-      tripId: Id<"trips">;
-      paidBy: string;
-      amount: number;
-      note: string;
-      splitAmong: string[];
-      date: string;
-      ownerTokenIdentifier: string;
-      createdAt: number;
-    }
-  : TableName extends "settlements"
-  ? {
-      _id: Id<"settlements">;
-      _creationTime: number;
-      tripId: Id<"trips">;
-      fromMember: string;
-      toMember: string;
-      amount: number;
-      settledAt?: number;
-      ownerTokenIdentifier: string;
-      createdAt: number;
-    }
-  : TableName extends "smsReviewQueue"
-  ? {
-      _id: Id<"smsReviewQueue">;
-      _creationTime: number;
-      rawSms: string;
-      parsedAmount?: number;
-      parsedParty?: string;
-      parsedDirection?: "debit" | "credit";
-      parsedDate?: string;
-      parsedUpiRef?: string;
-      status: "pending" | "approved" | "rejected";
-      ownerTokenIdentifier: string;
-      createdAt: number;
-      reviewedAt?: number;
-    }
-  : TableName extends "users"
-  ? {
-      _id: Id<"users">;
-      _creationTime: number;
-      name?: string;
-      email?: string;
-      image?: string;
-      tokenIdentifier: string;
-    }
-  : never;
-
-export type DataModel = {
-  users: { document: Doc<"users">; fieldPaths: string; indexes: {}; searchIndexes: {}; vectorIndexes: {} };
-  expenses: { document: Doc<"expenses">; fieldPaths: string; indexes: {}; searchIndexes: {}; vectorIndexes: {} };
-  trips: { document: Doc<"trips">; fieldPaths: string; indexes: {}; searchIndexes: {}; vectorIndexes: {} };
-  tripExpenses: { document: Doc<"tripExpenses">; fieldPaths: string; indexes: {}; searchIndexes: {}; vectorIndexes: {} };
-  settlements: { document: Doc<"settlements">; fieldPaths: string; indexes: {}; searchIndexes: {}; vectorIndexes: {} };
-  smsReviewQueue: { document: Doc<"smsReviewQueue">; fieldPaths: string; indexes: {}; searchIndexes: {}; vectorIndexes: {} };
-};
+/**
+ * A type describing your Convex data model.
+ *
+ * This type includes information about what tables you have, the type of
+ * documents stored in those tables, and the indexes defined on them.
+ *
+ * This type is used to parameterize methods like `queryGeneric` and
+ * `mutationGeneric` to make them type-safe.
+ */
+export type DataModel = DataModelFromSchemaDefinition<typeof schema>;

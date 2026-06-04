@@ -1,5 +1,4 @@
 import { mutation } from "./_generated/server";
-import { requireTokenIdentifier } from "./authHelpers";
 
 export const store = mutation({
   args: {},

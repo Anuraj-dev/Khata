@@ -5,6 +5,7 @@
 - Never add Claude, Anthropic, or any AI tool attribution in commits, PRs, or commit messages.
 - No "Co-Authored-By", "Generated with", "AI-assisted", or similar lines anywhere in any git output.
 - Create clean commits with only the actual change.
+- DOn't commit without permission of the user - Raja
 - Follow Conventional Commits: `feat:`, `fix:`, `chore:`, `docs:`, `refactor:`, `test:`
 
 ## Source of truth
@@ -15,18 +16,20 @@
 
 ## Project layout
 
-- `apps/mobile/` — Expo / React Native app (dev-client build, not Expo Go)
+- `apps/web/` — Vite + React PWA (primary target, active development)
+- `apps/mobile/` — Expo / React Native app (abandoned, left in place)
 - `convex/` — Convex backend (queries, mutations, actions, schema)
 
-## Mobile specifics
+## Web PWA specifics
 
-- All Convex types are imported from `../../convex/_generated/` (relative to `apps/mobile/`).
-- Env vars are prefixed `EXPO_PUBLIC_`.
-- SMS reading only works on Android — iOS users use manual logging. Design UI to gracefully degrade.
+- Convex types are imported from `../../convex/_generated/` (relative to `apps/web/`).
+- Env vars are prefixed `VITE_` (e.g. `VITE_CONVEX_URL`).
+- SMS reading is gated behind `Capacitor.isNativePlatform()` — web users log manually. Never show SMS UI on web.
 - Amounts are stored in **paise** (integer) to avoid floating-point errors. Display as ₹ with decimal.
-- `better-auth` session storage uses a synchronous in-memory cache backed by `expo-secure-store`. Auth-dependent code must wait for `authStorageReady` to resolve before making session calls.
+- `better-auth` session storage uses the browser's default cookie/localStorage — no SecureStore or in-memory hydration needed on web.
+- Tailwind CSS v4 — use `@import "tailwindcss"` in CSS, no `tailwind.config.js`. Theme tokens live in `src/index.css` as CSS custom properties.
 
 ## Release and versioning
 
 - Release automation is managed by `release-please` via `.github/workflows/release-please.yml`.
-- Version source: `apps/mobile/package.json` (release-please also updates `apps/mobile/app.json > $.expo.version`).
+- Version source: `apps/mobile/package.json` (release-please also updates `apps/mobile/app.json > $.expo.version`). Update this to `apps/web/package.json` when web is the primary release target.

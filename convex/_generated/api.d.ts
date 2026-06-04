@@ -8,128 +8,62 @@
  * @module
  */
 
-import type { FunctionReference } from "convex/server";
+import type * as auth from "../auth.js";
+import type * as authHelpers from "../authHelpers.js";
+import type * as crons from "../crons.js";
+import type * as expenses from "../expenses.js";
+import type * as http from "../http.js";
+import type * as index from "../index.js";
+import type * as settlements from "../settlements.js";
+import type * as smsQueue from "../smsQueue.js";
+import type * as trips from "../trips.js";
+import type * as users from "../users.js";
 
-type ExpenseCategory = "food" | "travel" | "shopping" | "bills" | "health" | "other";
-type Direction = "debit" | "credit";
-type TripStatus = "active" | "settled";
+import type {
+  ApiFromModules,
+  FilterApi,
+  FunctionReference,
+} from "convex/server";
 
-declare const api: {
-  expenses: {
-    listByDate: FunctionReference<"query", "public", { date: string }, any>;
-    listRecent: FunctionReference<"query", "public", { limit?: number }, any>;
-    addExpense: FunctionReference<
-      "mutation",
-      "public",
-      {
-        clientId: string;
-        amount: number;
-        note: string;
-        category: ExpenseCategory;
-        source: "manual" | "sms";
-        direction: Direction;
-        upiRef?: string;
-        party?: string;
-        date: string;
-      },
-      any
-    >;
-    updateExpense: FunctionReference<
-      "mutation",
-      "public",
-      {
-        expenseId: string;
-        note?: string;
-        category?: ExpenseCategory;
-        amount?: number;
-        date?: string;
-      },
-      any
-    >;
-    deleteExpense: FunctionReference<"mutation", "public", { expenseId: string }, any>;
-  };
-  trips: {
-    listTrips: FunctionReference<"query", "public", { status?: TripStatus }, any>;
-    getTrip: FunctionReference<"query", "public", { tripId: string }, any>;
-    listTripExpenses: FunctionReference<"query", "public", { tripId: string }, any>;
-    createTrip: FunctionReference<
-      "mutation",
-      "public",
-      { clientId: string; name: string; members: string[]; startDate?: string },
-      any
-    >;
-    addTripExpense: FunctionReference<
-      "mutation",
-      "public",
-      {
-        clientId: string;
-        tripId: string;
-        paidBy: string;
-        amount: number;
-        note: string;
-        splitAmong: string[];
-        date: string;
-      },
-      any
-    >;
-    settleTrip: FunctionReference<"mutation", "public", { tripId: string }, any>;
-  };
-  settlements: {
-    listByTrip: FunctionReference<"query", "public", { tripId: string }, any>;
-    markSettled: FunctionReference<"mutation", "public", { settlementId: string }, any>;
-    saveSettlements: FunctionReference<
-      "mutation",
-      "public",
-      {
-        tripId: string;
-        settlements: { fromMember: string; toMember: string; amount: number }[];
-      },
-      any
-    >;
-  };
-  smsQueue: {
-    listPending: FunctionReference<"query", "public", Record<string, never>, any>;
-    enqueue: FunctionReference<
-      "mutation",
-      "public",
-      {
-        rawSms: string;
-        parsedAmount?: number;
-        parsedParty?: string;
-        parsedDirection?: Direction;
-        parsedDate?: string;
-        parsedUpiRef?: string;
-      },
-      any
-    >;
-    approve: FunctionReference<
-      "mutation",
-      "public",
-      {
-        queueId: string;
-        amount: number;
-        note: string;
-        category: ExpenseCategory;
-        direction: Direction;
-        date: string;
-        party?: string;
-        upiRef?: string;
-      },
-      any
-    >;
-    reject: FunctionReference<"mutation", "public", { queueId: string }, any>;
-  };
-  users: {
-    store: FunctionReference<"mutation", "public", Record<string, never>, any>;
-  };
+declare const fullApi: ApiFromModules<{
+  auth: typeof auth;
+  authHelpers: typeof authHelpers;
+  crons: typeof crons;
+  expenses: typeof expenses;
+  http: typeof http;
+  index: typeof index;
+  settlements: typeof settlements;
+  smsQueue: typeof smsQueue;
+  trips: typeof trips;
+  users: typeof users;
+}>;
+
+/**
+ * A utility for referencing Convex functions in your app's public API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = api.myModule.myFunction;
+ * ```
+ */
+export declare const api: FilterApi<
+  typeof fullApi,
+  FunctionReference<any, "public">
+>;
+
+/**
+ * A utility for referencing Convex functions in your app's internal API.
+ *
+ * Usage:
+ * ```js
+ * const myFunctionReference = internal.myModule.myFunction;
+ * ```
+ */
+export declare const internal: FilterApi<
+  typeof fullApi,
+  FunctionReference<any, "internal">
+>;
+
+export declare const components: {
+  betterAuth: import("@convex-dev/better-auth/_generated/component.js").ComponentApi<"betterAuth">;
 };
-
-export { api };
-
-export declare const internal: {
-  smsQueue: {
-    purgeOldRejected: FunctionReference<"mutation", "internal", Record<string, never>, any>;
-  };
-};
-
-export declare const components: Record<string, never>;
