@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.6.0](https://github.com/Anuraj-dev/Khata/compare/v0.5.0...v0.6.0) (2026-06-04)
+
+
+### Features
+
+* **trips:** in-app invite scanner + manage members ([eaf44a7](https://github.com/Anuraj-dev/Khata/commit/eaf44a771e02323e4a1367a891aba01236bc710a))
+* **trips:** in-app invite scanner + manage members ([38493f5](https://github.com/Anuraj-dev/Khata/commit/38493f585ccaa644cb6eeb4b46f4ee6511af8713))
+
+
+### Bug Fixes
+
+* **expenses:** friendlier note placeholder + declutter list headers ([6fb4627](https://github.com/Anuraj-dev/Khata/commit/6fb46276b7295686b27a65b66587d22d7d4e02de))
+* **expenses:** friendlier note placeholder + declutter list headers ([3ded809](https://github.com/Anuraj-dev/Khata/commit/3ded8097d1fecd63a48efc5051c09f1173fb768a))
+
 ## [0.5.0](https://github.com/Anuraj-dev/Khata/compare/v0.4.0...v0.5.0) (2026-06-04)
 
 
