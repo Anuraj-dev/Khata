@@ -21,6 +21,7 @@ export function AddExpenseDrawer({ open, onClose, onSave }: Props) {
   const [note, setNote] = useState("");
   const [category, setCategory] = useState<ExpenseCategory>("other");
   const [direction, setDirection] = useState<ExpenseDirection>("debit");
+  const [date, setDate] = useState(todayIso());
   const [isSaving, setIsSaving] = useState(false);
   const noteRef = useRef<HTMLInputElement>(null);
 
@@ -39,15 +40,16 @@ export function AddExpenseDrawer({ open, onClose, onSave }: Props) {
     setNote("");
     setCategory("other");
     setDirection("debit");
+    setDate(todayIso());
     setIsSaving(false);
   }
 
   async function handleSave() {
     if (paise === 0 || isSaving) return;
     setIsSaving(true);
-    const saved = await onSave({ amount: paise, note, category, direction, date: todayIso() });
+    const saved = await onSave({ amount: paise, note, category, direction, date });
     if (saved) {
-      void expenseStore.add({ amount: paise, note, category, direction, date: todayIso() });
+      void expenseStore.add({ amount: paise, note, category, direction, date });
       reset();
       onClose();
     } else {
@@ -112,21 +114,35 @@ export function AddExpenseDrawer({ open, onClose, onSave }: Props) {
         {/* Amount keypad */}
         <AmountInput paise={paise} onChange={setPaise} />
 
-        {/* Note */}
-        <div className="px-4">
+        {/* Note + date */}
+        <div className="flex gap-2 px-4">
           <input
             ref={noteRef}
             type="text"
-            placeholder="What was this for?"
+            placeholder="Note or who it was for"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             maxLength={80}
-            className="w-full px-3 py-3 rounded-xl text-sm outline-none"
+            className="flex-1 min-w-0 px-3 py-3 rounded-xl text-sm outline-none"
             style={{
               background: "var(--color-surface)",
               border: "1px solid var(--color-border-subtle)",
               color: "var(--color-text-primary)",
               fontFamily: "var(--font-sans)",
+            }}
+          />
+          <input
+            type="date"
+            value={date}
+            max={todayIso()}
+            onChange={(e) => setDate(e.target.value || todayIso())}
+            aria-label="Date"
+            className="shrink-0 px-3 py-3 rounded-xl text-sm outline-none"
+            style={{
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border-subtle)",
+              color: "var(--color-text-secondary)",
+              fontFamily: "var(--font-mono)",
             }}
           />
         </div>
