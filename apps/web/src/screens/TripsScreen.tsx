@@ -11,7 +11,7 @@ export function TripsScreen() {
   const [createOpen, setCreateOpen] = useState(false);
 
   return (
-    <div className="flex flex-col flex-1 overflow-y-auto pb-24">
+    <div className="flex flex-col flex-1 min-h-0 overflow-y-auto pb-24">
       <div className="flex items-center justify-between px-4 pt-4 pb-2">
         <h2 className="text-base font-semibold" style={{ color: "var(--color-text-primary)" }}>
           Trips

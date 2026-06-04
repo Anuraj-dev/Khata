@@ -45,14 +45,7 @@ export const addExpense = mutation({
     clientId: v.string(),
     amount: v.number(),
     note: v.string(),
-    category: v.union(
-      v.literal("food"),
-      v.literal("travel"),
-      v.literal("shopping"),
-      v.literal("bills"),
-      v.literal("health"),
-      v.literal("other")
-    ),
+    category: v.string(),
     source: v.union(v.literal("manual"), v.literal("sms")),
     direction: v.union(v.literal("debit"), v.literal("credit")),
     upiRef: v.optional(v.string()),
@@ -75,16 +68,7 @@ export const updateExpense = mutation({
   args: {
     expenseId: v.id("expenses"),
     note: v.optional(v.string()),
-    category: v.optional(
-      v.union(
-        v.literal("food"),
-        v.literal("travel"),
-        v.literal("shopping"),
-        v.literal("bills"),
-        v.literal("health"),
-        v.literal("other")
-      )
-    ),
+    category: v.optional(v.string()),
     amount: v.optional(v.number()),
     date: v.optional(v.string()),
   },

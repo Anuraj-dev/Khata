@@ -4,6 +4,7 @@ import { formatRupees } from "../lib/dates";
 import { expenseStore, type LocalExpense } from "../lib/expenseStorage";
 import { useExpenseList } from "../hooks/useExpenseList";
 import { useExpenseQueries } from "../hooks/useExpenseQueries";
+import { useCategories } from "../hooks/useCategories";
 import { ExpenseCard } from "../components/ExpenseCard";
 import { DaySectionHeader } from "../components/DaySectionHeader";
 import { MonthDivider } from "../components/MonthDivider";
@@ -34,6 +35,7 @@ function monthTotals(
 export function ExpensesScreen({ isAuthenticated, onAddPress }: Props) {
   const { sections, isEmpty, todayDebit, todayCredit } = useExpenseList();
   const { recentExpenses } = useExpenseQueries({ isAuthenticated });
+  const { resolve } = useCategories();
 
   // Sync server data into local store when it arrives
   useEffect(() => {
@@ -56,7 +58,7 @@ export function ExpensesScreen({ isAuthenticated, onAddPress }: Props) {
 
   if (isEmpty) {
     return (
-      <div className="flex flex-col flex-1">
+      <div className="flex flex-col flex-1 min-h-0">
         <ReviewBanner />
         <EmptyExpenses onAdd={onAddPress} />
       </div>
@@ -64,7 +66,7 @@ export function ExpensesScreen({ isAuthenticated, onAddPress }: Props) {
   }
 
   return (
-    <div className="flex flex-col flex-1">
+    <div className="flex flex-col flex-1 min-h-0">
       <ReviewBanner />
       {/* Today summary bar */}
       {(todayDebit > 0 || todayCredit > 0) && (
@@ -108,7 +110,10 @@ export function ExpensesScreen({ isAuthenticated, onAddPress }: Props) {
       )}
 
       {/* Expense list */}
-      <div className="flex-1 overflow-y-auto pb-32">
+      <div
+        className="flex-1 min-h-0 overflow-y-auto pb-32"
+        style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}
+      >
         {sections.map((section, i) => {
           const month = section.date.slice(0, 7);
           const isNewMonth = i === 0 || sections[i - 1].date.slice(0, 7) !== month;
@@ -123,7 +128,7 @@ export function ExpensesScreen({ isAuthenticated, onAddPress }: Props) {
                 totalCredit={section.totalCredit}
               />
               {section.data.map((expense) => (
-                <ExpenseCard key={expense.id} expense={expense} />
+                <ExpenseCard key={expense.id} expense={expense} meta={resolve(expense.category)} />
               ))}
             </div>
           );

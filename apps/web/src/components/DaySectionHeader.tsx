@@ -9,7 +9,7 @@ type Props = {
 export function DaySectionHeader({ label, totalDebit, totalCredit }: Props) {
   return (
     <div
-      className="flex items-center justify-between px-4 pt-5 pb-2"
+      className="sticky top-0 z-10 flex items-center justify-between px-4 pt-5 pb-2"
       style={{ background: "var(--color-bg)" }}
     >
       <span

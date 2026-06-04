@@ -3,7 +3,9 @@ import { todayIso } from "./dates";
 
 const STORAGE_KEY = "khata_expenses_v1";
 
-export type ExpenseCategory = "food" | "travel" | "shopping" | "bills" | "health" | "other";
+// Category id — one of the built-ins or a user-defined slug from the `categories`
+// table. Kept as a plain string so custom categories round-trip without churn.
+export type ExpenseCategory = string;
 export type ExpenseDirection = "debit" | "credit";
 
 export type LocalExpense = {
@@ -28,7 +30,6 @@ function makeId(): string {
 
 function sanitize(value: unknown): LocalExpense[] {
   if (!Array.isArray(value)) return [];
-  const validCategories: ExpenseCategory[] = ["food", "travel", "shopping", "bills", "health", "other"];
   const validDirections: ExpenseDirection[] = ["debit", "credit"];
   const out: LocalExpense[] = [];
   for (const entry of value) {
@@ -38,7 +39,7 @@ function sanitize(value: unknown): LocalExpense[] {
       typeof e.id !== "string" ||
       typeof e.amount !== "number" ||
       typeof e.note !== "string" ||
-      !validCategories.includes(e.category as ExpenseCategory) ||
+      typeof e.category !== "string" ||
       !validDirections.includes(e.direction as ExpenseDirection)
     ) continue;
     out.push({
