@@ -10,6 +10,7 @@ import { DaySectionHeader } from "../components/DaySectionHeader";
 import { MonthDivider } from "../components/MonthDivider";
 import { EmptyExpenses } from "../components/EmptyExpenses";
 import { ReviewBanner } from "../components/ReviewBanner";
+import { TripsSummary } from "../components/TripsSummary";
 
 type Props = {
   isAuthenticated: boolean;
@@ -56,10 +57,14 @@ export function ExpensesScreen({ isAuthenticated, onAddPress }: Props) {
     expenseStore._syncFromServer(serverExpenses);
   }, [recentExpenses]);
 
+  // Net for the day: what's left after spend vs received. Positive = up, negative = down.
+  const todayNet = todayCredit - todayDebit;
+
   if (isEmpty) {
     return (
       <div className="flex flex-col flex-1 min-h-0">
         <ReviewBanner />
+        <TripsSummary isAuthenticated={isAuthenticated} />
         <EmptyExpenses onAdd={onAddPress} />
       </div>
     );
@@ -106,8 +111,30 @@ export function ExpensesScreen({ isAuthenticated, onAddPress }: Props) {
               </span>
             </div>
           )}
+          {/* Net — only meaningful once there's both a spend and a credit to net. */}
+          {todayDebit > 0 && todayCredit > 0 && (
+            <div className="flex flex-col gap-0.5">
+              <span
+                className="text-xs font-medium uppercase tracking-wider"
+                style={{ color: "var(--color-text-muted)" }}
+              >
+                Net
+              </span>
+              <span
+                className="text-xl tabular-nums font-medium"
+                style={{
+                  color: todayNet >= 0 ? "var(--color-credit)" : "var(--color-debit)",
+                  fontFamily: "var(--font-mono)",
+                  letterSpacing: -0.5,
+                }}
+              >
+                {todayNet >= 0 ? "+" : "−"}{formatRupees(Math.abs(todayNet))}
+              </span>
+            </div>
+          )}
         </div>
       )}
+      <TripsSummary isAuthenticated={isAuthenticated} />
 
       {/* Expense list */}
       <div
