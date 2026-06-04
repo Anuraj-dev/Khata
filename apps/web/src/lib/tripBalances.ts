@@ -4,14 +4,18 @@ export type TripExpenseLite = {
   paidBy: string;
   amount: number;
   splitAmong: string[];
+  splitMode?: "equal" | "custom";
+  shares?: { member: string; amount: number }[];
 };
+
+export type PaymentLite = { fromMember: string; toMember: string; amount: number };
 
 export type Settlement = { from: string; to: string; amount: number };
 
 // Net position per member: positive = they are owed money, negative = they owe.
-// Each expense is split equally among `splitAmong`; the payer is credited the
-// full amount. Remainder paise from uneven divisions are spread over the first
-// few sharers so the books balance to the rupee.
+// The payer is credited the full amount. Custom-split expenses debit each member
+// their explicit share; equal splits divide evenly, spreading remainder paise
+// over the first few sharers so the books balance to the rupee.
 export function computeBalances(
   members: string[],
   expenses: TripExpenseLite[]
@@ -20,10 +24,16 @@ export function computeBalances(
   for (const m of members) net[m] = 0;
 
   for (const e of expenses) {
-    const n = e.splitAmong.length;
-    if (n === 0 || e.amount <= 0) continue;
+    if (e.amount <= 0) continue;
     net[e.paidBy] = (net[e.paidBy] ?? 0) + e.amount;
 
+    if (e.splitMode === "custom" && e.shares && e.shares.length > 0) {
+      for (const s of e.shares) net[s.member] = (net[s.member] ?? 0) - s.amount;
+      continue;
+    }
+
+    const n = e.splitAmong.length;
+    if (n === 0) continue;
     const base = Math.floor(e.amount / n);
     let remainder = e.amount - base * n; // distribute leftover paise
     for (const m of e.splitAmong) {
@@ -33,6 +43,20 @@ export function computeBalances(
     }
   }
   return net;
+}
+
+// Apply recorded payments to a net-balance map: the payer's debt shrinks, the
+// receiver's credit shrinks. Returns a new map (does not mutate the input).
+export function applyPayments(
+  net: Record<string, number>,
+  payments: PaymentLite[]
+): Record<string, number> {
+  const out = { ...net };
+  for (const p of payments) {
+    out[p.fromMember] = (out[p.fromMember] ?? 0) + p.amount;
+    out[p.toMember] = (out[p.toMember] ?? 0) - p.amount;
+  }
+  return out;
 }
 
 // Greedy minimum-cash-flow: who should pay whom to settle up with the fewest

@@ -192,19 +192,23 @@
 ### Notes
 - SMS capture limitation accepted (MVP): banks drop SMS for small UPI txns (SBI especially; HDFC < ₹100). Chose **Path A** — keep SMS auto-log + fast manual quick-add with an optional **date** field for missed/past entries. Email/Gmail capture (Path B) deferred.
 
-### M4.1 (planned, NOT built): Incremental per-person settle-up
+### M4.1: Trips round — settle-up + edit/delete + unequal splits + emoji 🔨
 
-**Problem:** today settle-up is all-or-nothing — one "Mark as settled & close" button closes the whole trip. No way to mark one person paid while others haven't. Real life: people pay back at different times.
+**Scope agreed:** all four below in one round. (Verified: multiple shared expenses per trip already work — each has its own `paidBy`/`splitAmong` and balances recompute live.)
 
-**Agreed design (record-payment model, Splitwise-style):**
-- Each suggested transfer ("Amit pays You ₹500") gets a **tick**. Tapping it **records a real payment** (from→to→amount, timestamped) — not just a "ticked" flag.
-- Paid lines render **struck-through + green ✓**; unpaid stay highlighted. Recorded payments shown in a "Paid" group.
-- Recorded payments feed back into balance math: `net[from] += amt; net[to] -= amt`, then `simplifyDebts` on the adjusted net → remaining transfers recompute live.
-- **Key correctness rule:** adding a new expense after someone paid must NOT wipe/distort their recorded payment — it only adds their new share. (This is why we chose record-payment over freezing the suggested list.)
-- Trip auto-marks settled when no transfers remain; keep a manual close too.
-- Ties into M6: a settled debt drops off that person's "you owe" home card.
+**1. Incremental per-person settle-up (record-payment model):**
+- Each suggested transfer ("Amit pays You ₹500") gets a tick → records a real payment (from→to→amount, timestamped), not just a flag.
+- Paid lines struck-through + green ✓ in a "Paid" group with undo; remaining recompute live.
+- Math: `net[from] += amt; net[to] -= amt`, then `simplifyDebts`. New expenses after a payment must NOT distort it.
+- `recordPayment(tripId,from,to,amount)` + `deletePayment(id)`; drop old snapshot flow (`saveSettlements`/`markSettled`). Close = `settleTrip` only.
 
-**Backend:** already half-ready — `settlements.settledAt` field + unused `markSettled` mutation exist. Add a `recordPayment(tripId, from, to, amount)` mutation (inserts a settled `settlements` row) and a balance helper that subtracts recorded payments. Wire ticks in `TripDetailScreen`.
+**2. Edit / delete a shared expense:** `updateTripExpense` + `deleteTripExpense`; tap a row → drawer in edit mode with Delete.
+
+**3. Equal / unequal splits:** drawer toggle Equal (chips, even) vs Unequally (per-member ₹ inputs, live remainder, "split evenly" helper; save gated on shares summing to total). Schema: `tripExpenses.splitMode` + `shares` (`{member, amount}` paise).
+
+**4. Emoji on a trip expense:** `tripExpenses.emoji` (optional); emoji row in drawer, shown on each row.
+
+**Files:** `convex/schema.ts`, `convex/trips.ts`, `convex/settlements.ts`, `lib/tripBalances.ts`, `components/AddTripExpenseDrawer.tsx`, `screens/TripDetailScreen.tsx`.
 
 ---
 
