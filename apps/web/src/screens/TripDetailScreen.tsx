@@ -46,6 +46,8 @@ export function TripDetailScreen() {
   const net = applyPayments(rawNet, payments);
   const transfers = simplifyDebts(net);
   const allCleared = expenses.length > 0 && transfers.length === 0;
+  // Can only close once nobody owes anyone (every suggested transfer ticked paid).
+  const canClose = transfers.length === 0;
 
   function openAdd() {
     setEditing(null);
@@ -216,12 +218,24 @@ export function TripDetailScreen() {
             + Add shared expense
           </button>
           <button
-            onClick={() => void settleTrip({ tripId: id })}
-            className="w-full rounded-xl text-sm font-semibold"
-            style={{ height: 46, background: "var(--color-surface)", border: "1px solid var(--color-border-default)", color: "var(--color-text-primary)" }}
+            onClick={() => canClose && void settleTrip({ tripId: id })}
+            disabled={!canClose}
+            className="w-full rounded-xl text-sm font-semibold transition-opacity"
+            style={{
+              height: 46,
+              background: "var(--color-surface)",
+              border: `1px solid ${canClose ? "var(--color-border-default)" : "var(--color-border-subtle)"}`,
+              color: canClose ? "var(--color-text-primary)" : "var(--color-text-muted)",
+              opacity: canClose ? 1 : 0.6,
+            }}
           >
-            {allCleared ? "Close trip" : "Close trip anyway"}
+            Mark settled & close
           </button>
+          {!canClose && (
+            <p className="text-xs text-center" style={{ color: "var(--color-text-muted)" }}>
+              Tick everyone as paid in “Settle up” before closing.
+            </p>
+          )}
         </div>
       )}
 
