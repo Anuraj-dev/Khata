@@ -8,6 +8,8 @@ import { computeBalances, applyPayments, simplifyDebts } from "../lib/tripBalanc
 import { AddTripExpenseDrawer } from "../components/AddTripExpenseDrawer";
 import { ShareTripSheet } from "../components/ShareTripSheet";
 import { ManageMembersSheet } from "../components/ManageMembersSheet";
+import { Button } from "../components/Button";
+import { ChevronLeft, EyeIcon, CheckCircleIcon, PlusIcon } from "../components/icons";
 
 export function TripDetailScreen() {
   const { tripId } = useParams();
@@ -38,9 +40,9 @@ export function TripDetailScreen() {
     return (
       <div className="flex flex-col flex-1 items-center justify-center gap-3" style={{ color: "var(--color-text-secondary)" }}>
         <p className="text-sm">Trip not found.</p>
-        <button onClick={() => navigate("/trips")} className="text-sm" style={{ color: "var(--color-accent)" }}>
-          ← Back to trips
-        </button>
+        <Button variant="ghost" size="sm" onClick={() => navigate("/trips")}>
+          Back to trips
+        </Button>
       </div>
     );
   }
@@ -102,8 +104,13 @@ export function TripDetailScreen() {
     <div className="flex flex-col flex-1 min-h-0 overflow-y-auto pb-28">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 pt-4 pb-2">
-        <button onClick={() => navigate("/trips")} aria-label="Back" className="text-xl pr-1" style={{ background: "none", border: "none", color: "var(--color-text-secondary)" }}>
-          ‹
+        <button
+          onClick={() => navigate("/trips")}
+          aria-label="Back"
+          className="flex h-9 w-9 -ml-1.5 items-center justify-center"
+          style={{ background: "none", border: "none", color: "var(--color-text-secondary)", cursor: "pointer" }}
+        >
+          <ChevronLeft size={22} strokeWidth={2} />
         </button>
         <div className="flex flex-col flex-1 min-w-0">
           <h2 className="text-base font-semibold truncate" style={{ color: "var(--color-text-primary)" }}>
@@ -130,20 +137,16 @@ export function TripDetailScreen() {
           </span>
         )}
         {!isViewer && (
-          <button
-            onClick={() => setShareOpen(true)}
-            aria-label="Share trip"
-            className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold active:opacity-70 transition-opacity"
-            style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-default)", color: "var(--color-text-primary)" }}
-          >
+          <Button variant="secondary" size="sm" onClick={() => setShareOpen(true)} aria-label="Share trip">
             Share
-          </button>
+          </Button>
         )}
       </div>
 
       {isViewer && (
-        <div className="mx-4 mt-1 mb-1 flex items-center gap-2 rounded-xl px-3 py-2 text-xs" style={{ background: "var(--color-accent-subtle)", color: "var(--color-accent)" }}>
-          👁 Shared with you · read-only{trip.viewerMember ? ` · you're ${trip.viewerMember}` : ""}
+        <div className="mx-4 mt-1 mb-1 flex items-center gap-2 px-3 py-2 text-xs" style={{ background: "var(--color-accent-subtle)", color: "var(--color-accent)", borderRadius: "var(--radius-md)" }}>
+          <EyeIcon size={14} strokeWidth={2} />
+          <span>Shared with you · read-only{trip.viewerMember ? ` · you're ${trip.viewerMember}` : ""}</span>
         </div>
       )}
 
@@ -179,8 +182,8 @@ export function TripDetailScreen() {
                 <button
                   onClick={() => void markPaid(t.from, t.to, t.amount)}
                   disabled={busy}
-                  className="shrink-0 rounded-full px-3 py-1 text-xs font-semibold transition-opacity disabled:opacity-50"
-                  style={{ background: "var(--color-surface)", border: "1px solid var(--color-credit)", color: "var(--color-credit)" }}
+                  className="shrink-0 px-3 py-1.5 text-xs font-semibold transition-colors active:[background:var(--color-success-dim)] disabled:opacity-50"
+                  style={{ background: "var(--color-surface)", border: "1px solid var(--color-credit)", color: "var(--color-credit)", borderRadius: "var(--radius-pill)", cursor: "pointer", transitionDuration: "var(--dur-fast)" }}
                 >
                   Mark paid
                 </button>
@@ -191,8 +194,9 @@ export function TripDetailScreen() {
       )}
 
       {allCleared && (
-        <div className="mx-4 mt-4 rounded-xl px-4 py-3 text-sm text-center" style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}>
-          🎉 All settled up!
+        <div className="mx-4 mt-4 flex items-center justify-center gap-2 px-4 py-3 text-sm" style={{ background: "var(--color-success-dim)", color: "var(--color-success)", borderRadius: "var(--radius-lg)" }}>
+          <CheckCircleIcon size={18} strokeWidth={2} />
+          <span className="font-semibold">All settled up!</span>
         </div>
       )}
 
@@ -233,10 +237,10 @@ export function TripDetailScreen() {
               key={e._id}
               onClick={() => openEdit(e)}
               disabled={isSettled || isViewer}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left active:opacity-70 transition-opacity disabled:active:opacity-100"
-              style={{ borderBottom: "1px solid var(--color-border-subtle)", background: "none" }}
+              className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors active:[background:var(--color-surface-elevated)] disabled:cursor-default"
+              style={{ borderBottom: "1px solid var(--color-border-subtle)", background: "transparent", transitionDuration: "var(--dur-fast)", cursor: isSettled || isViewer ? "default" : "pointer" }}
             >
-              <div className="flex items-center justify-center w-9 h-9 rounded-full shrink-0 text-base" style={{ background: "var(--color-surface)" }}>
+              <div className="flex items-center justify-center w-9 h-9 rounded-full shrink-0 text-base" style={{ background: "var(--color-bg)", boxShadow: "inset 0 0 0 1px var(--color-border-subtle)" }}>
                 {e.emoji || "🧾"}
               </div>
               <div className="flex flex-col min-w-0 flex-1">
@@ -256,27 +260,17 @@ export function TripDetailScreen() {
       {/* Actions */}
       {!isSettled && !isViewer && (
         <div className="flex flex-col gap-2 px-4 mt-5">
-          <button
-            onClick={openAdd}
-            className="w-full rounded-xl text-base font-bold"
-            style={{ height: 52, background: "var(--color-accent)", color: "var(--color-bg)" }}
-          >
-            + Add shared expense
-          </button>
-          <button
-            onClick={() => canClose && void settleTrip({ tripId: id })}
+          <Button fullWidth leftIcon={<PlusIcon size={18} />} onClick={openAdd} style={{ minHeight: 52 }}>
+            Add shared expense
+          </Button>
+          <Button
+            variant="secondary"
+            fullWidth
             disabled={!canClose}
-            className="w-full rounded-xl text-sm font-semibold transition-opacity"
-            style={{
-              height: 46,
-              background: "var(--color-surface)",
-              border: `1px solid ${canClose ? "var(--color-border-default)" : "var(--color-border-subtle)"}`,
-              color: canClose ? "var(--color-text-primary)" : "var(--color-text-muted)",
-              opacity: canClose ? 1 : 0.6,
-            }}
+            onClick={() => canClose && void settleTrip({ tripId: id })}
           >
-            Mark settled & close
-          </button>
+            Mark settled &amp; close
+          </Button>
           {!canClose && (
             <p className="text-xs text-center" style={{ color: "var(--color-text-muted)" }}>
               Tick everyone as paid in “Settle up” before closing.
@@ -316,11 +310,21 @@ export function TripDetailScreen() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mt-4">
-      <p className="px-4 pb-1 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>
+    <div className="mt-5">
+      <p className="px-4 pb-1.5 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>
         {title}
       </p>
-      <div style={{ borderTop: "1px solid var(--color-border-subtle)" }}>{children}</div>
+      <div
+        className="mx-4 overflow-hidden [&>*:last-child]:border-b-0"
+        style={{
+          background: "var(--gradient-surface)",
+          border: "1px solid var(--color-border-subtle)",
+          borderRadius: "var(--radius-lg)",
+          boxShadow: "var(--shadow-card)",
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }

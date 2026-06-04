@@ -9,6 +9,8 @@ import { AuthScreen } from "./components/AuthScreen";
 import { BottomNavBar } from "./components/BottomNavBar";
 import { FAB } from "./components/FAB";
 import { AddExpenseDrawer } from "./components/AddExpenseDrawer";
+import { BrandMark } from "./components/BrandMark";
+import { LandingScreen } from "./screens/LandingScreen";
 import { ExpensesScreen } from "./screens/ExpensesScreen";
 import { TripsScreen } from "./screens/TripsScreen";
 import { TripDetailScreen } from "./screens/TripDetailScreen";
@@ -67,20 +69,33 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
         style={{
           background: "var(--color-surface)",
           borderBottom: "1px solid var(--color-border-subtle)",
+          boxShadow: "0 1px 0 rgba(0,0,0,0.4)",
           minHeight: 52,
         }}
       >
-        <span
-          className="text-lg font-semibold tracking-tight"
-          style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}
-        >
-          ₹ Khata
+        <span className="flex items-center gap-2">
+          <BrandMark size={26} />
+          <span
+            className="text-lg font-semibold tracking-tight"
+            style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}
+          >
+            Khata
+          </span>
         </span>
         <button
           onClick={() => navigate("/settings")}
           aria-label="Settings"
-          className="ml-auto p-1.5 -mr-1.5 active:opacity-60 transition-opacity"
-          style={{ color: "var(--color-text-secondary)", background: "none", border: "none" }}
+          className="ml-auto flex h-11 w-11 -mr-2 items-center justify-center transition-colors"
+          style={{
+            color: "var(--color-text-secondary)",
+            background: "none",
+            border: "none",
+            borderRadius: "var(--radius-md)",
+            transitionDuration: "var(--dur-fast)",
+            cursor: "pointer",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-text-primary)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-text-secondary)")}
         >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3" />
@@ -92,12 +107,17 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
       {/* Toast */}
       {toast && (
         <div
-          className="fixed top-14 left-1/2 z-50 px-4 py-2 rounded-xl text-sm font-medium shadow-lg"
+          role="status"
+          aria-live="polite"
+          className="fixed top-14 left-1/2 z-50 px-4 py-2 text-sm font-medium"
           style={{
             transform: "translateX(-50%)",
             background: toast.kind === "error" ? "var(--color-error-dim)" : "var(--color-surface-elevated)",
             color: "var(--color-text-primary)",
             border: `1px solid ${toast.kind === "error" ? "var(--color-error)" : "var(--color-border-default)"}`,
+            borderRadius: "var(--radius-lg)",
+            boxShadow: "var(--shadow-elevated)",
+            animation: "khata-rise var(--dur-mid) var(--ease-out)",
           }}
         >
           {toast.message}
@@ -153,7 +173,11 @@ function AuthGate({ children }: { children: (isAuthenticated: boolean) => React.
   const { isLoading, isAuthenticated } = useConvexAuth();
 
   if (isLoading) return <BootScreen />;
-  if (!isAuthenticated) return <AuthScreen />;
+  // Logged-out: web gets the marketing landing; native (installed app) goes
+  // straight to sign-in — a marketing page makes no sense inside the app.
+  if (!isAuthenticated) {
+    return Capacitor.isNativePlatform() ? <AuthScreen /> : <LandingScreen />;
+  }
   return <>{children(true)}</>;
 }
 
