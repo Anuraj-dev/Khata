@@ -22,12 +22,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Deep link: catches the OAuth callback redirect from Chrome back into the app -->
+            <!-- OAuth callback deep link. After Google sign-in the Custom Tab redirects
+                 to khata://auth?ott=...; this custom scheme always routes back into the
+                 app (no App Links / assetlinks.json verification required). -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="khata.raja-dev.me" />
+                <data android:scheme="khata" />
             </intent-filter>
 
         </activity>

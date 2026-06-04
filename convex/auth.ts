@@ -19,7 +19,10 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
     // Convex auto-provides CONVEX_SITE_URL (the .convex.site origin) at runtime.
     baseURL: process.env.CONVEX_SITE_URL,
     database: authComponent.adapter(ctx),
-    trustedOrigins: [siteUrl, prodUrl, "http://localhost:5173", "https://localhost"],
+    // "khata://" is the Android custom URL scheme used for the in-app OAuth
+    // callback. Better Auth matches non-http schemes by prefix (url.startsWith),
+    // so listing the scheme is enough to trust "khata://auth?ott=...".
+    trustedOrigins: [siteUrl, prodUrl, "http://localhost:5173", "https://localhost", "khata://"],
     socialProviders: {
       google: {
         clientId: process.env.GOOGLE_OAUTH_CLIENT_ID!,

@@ -115,6 +115,20 @@
 - [x] `.github/workflows/build-apk.yml` — CI builds debug APK on every push to main, uploads as artifact (no Android Studio needed)
 - [ ] End-to-end test on device: new UPI SMS → appears in queue → approve → shows in expense list
 
+### M3.1: In-app OAuth + SMS auto-logging
+
+**Goal:** Sign-in completes inside the app (no Chrome website loop). UPI SMS auto-log to expenses; unparseable bank SMS fall back to the review queue.
+
+- [x] In-app OAuth via custom URL scheme (`khata://auth`) opened in a Custom Tab (`@capacitor/browser`) — no App Links verification needed, redirect always returns to the app
+- [x] `convex/auth.ts` — add `khata://` to `trustedOrigins` so Better Auth accepts the custom-scheme callbackURL
+- [x] `AuthScreen` — native branch: `signIn.social({ callbackURL: "khata://auth", disableRedirect: true })` → open returned URL in Custom Tab
+- [x] `useDeepLinkAuth` — handle `khata://` deep link: close browser, forward `?ott=` into the webview so `ConvexBetterAuthProvider` completes the session
+- [x] `AndroidManifest.xml` — replace unverified `https` App Link with `khata` custom-scheme intent filter
+- [x] `smsParser.ts` — extract transaction `date` (D-M-Y, D-Mon-Y formats); add keyword categorizer + deterministic client id for dedup
+- [x] `convex/smsQueue.ts` — `autoLog` mutation: dedupe by `clientId`, insert expense directly (no approval)
+- [x] `useSmsPoller` — confident parses (amount + direction) auto-log; ambiguous/unparseable bank SMS enqueue for manual review
+- [x] `smsPoller.ts` — fall back to SMS receive timestamp when no date in body
+
 ---
 
 ## M4: Group Trip Splitter

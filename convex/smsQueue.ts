@@ -36,6 +36,48 @@ export const enqueue = mutation({
   },
 });
 
+// Directly logs a confidently-parsed UPI SMS as an expense — no manual approval.
+// Dedupes on clientId so re-reading the inbox (e.g. after an app restart) is safe.
+export const autoLog = mutation({
+  args: {
+    clientId: v.string(),
+    amount: v.number(),
+    note: v.string(),
+    category: v.union(
+      v.literal("food"),
+      v.literal("travel"),
+      v.literal("shopping"),
+      v.literal("bills"),
+      v.literal("health"),
+      v.literal("other")
+    ),
+    direction: v.union(v.literal("debit"), v.literal("credit")),
+    date: v.string(),
+    party: v.optional(v.string()),
+    upiRef: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const owner = await requireTokenIdentifier(ctx);
+
+    const existing = await ctx.db
+      .query("expenses")
+      .withIndex("by_owner_client_id", (q) =>
+        q.eq("ownerTokenIdentifier", owner).eq("clientId", args.clientId)
+      )
+      .unique();
+    if (existing) return existing._id;
+
+    const now = Date.now();
+    return ctx.db.insert("expenses", {
+      ...args,
+      source: "sms",
+      ownerTokenIdentifier: owner,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
 export const approve = mutation({
   args: {
     queueId: v.id("smsReviewQueue"),

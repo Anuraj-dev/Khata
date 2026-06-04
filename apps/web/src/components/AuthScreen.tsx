@@ -1,6 +1,12 @@
 import { useState } from "react";
+import { Capacitor } from "@capacitor/core";
+import { Browser } from "@capacitor/browser";
 import { authClient } from "../lib/auth-client";
 import { logger } from "../lib/logger";
+
+// Custom URL scheme registered in AndroidManifest.xml. Better Auth redirects here
+// after Google OAuth; the deep-link handler (useDeepLinkAuth) catches it.
+const NATIVE_CALLBACK_URL = "khata://auth";
 
 export function AuthScreen() {
   const [loading, setLoading] = useState(false);
@@ -10,7 +16,28 @@ export function AuthScreen() {
     setLoading(true);
     setError(null);
     try {
-      await authClient.signIn.social({ provider: "google", callbackURL: "/" });
+      if (Capacitor.isNativePlatform()) {
+        // Native: Google blocks OAuth inside embedded webviews, so we ask Better
+        // Auth for the provider URL (disableRedirect keeps the webview put) and
+        // open it in a Custom Tab. The flow returns via the khata:// deep link,
+        // which useDeepLinkAuth finishes — so we do NOT clear loading on success.
+        const { data, error: signInError } = await authClient.signIn.social({
+          provider: "google",
+          callbackURL: NATIVE_CALLBACK_URL,
+          disableRedirect: true,
+        });
+        if (signInError || !data?.url) {
+          throw new Error(signInError?.message ?? "No OAuth URL returned");
+        }
+        // Reset the button if the user dismisses the Custom Tab without signing in.
+        const finished = await Browser.addListener("browserFinished", () => {
+          setLoading(false);
+          finished.remove();
+        });
+        await Browser.open({ url: data.url });
+      } else {
+        await authClient.signIn.social({ provider: "google", callbackURL: "/" });
+      }
     } catch (err) {
       logger.error("google_signin_failed", { error: String(err) });
       setError("Sign-in failed. Please try again.");
