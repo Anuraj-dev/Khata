@@ -108,7 +108,11 @@
 - [x] `src/components/BottomNavBar.tsx` — UPI tab added; badge shows pending count
 - [x] Wire approve → `smsQueue.approve` mutation (creates expense + marks approved)
 - [x] Wire reject → `smsQueue.reject` mutation
-- [ ] `apps/web/android/` — run `npx cap add android` (needs Android Studio / SDK); set `READ_SMS` + `RECEIVE_SMS` in `AndroidManifest.xml`; implement `SmsPlugin.java` using `ContentResolver` to query `Telephony.Sms.Inbox`, register in `MainActivity.java`
+- [x] `apps/web/android/` — `bunx cap add android` scaffolded Android project
+- [x] `android/app/src/main/AndroidManifest.xml` — `READ_SMS` permission added
+- [x] `SmsPlugin.java` — ContentResolver queries `content://sms/inbox`, returns sender/body/timestamp; permission handled via `@CapacitorPlugin` annotation
+- [x] `MainActivity.java` — registers `SmsPlugin` in `onCreate`
+- [x] `.github/workflows/build-apk.yml` — CI builds debug APK on every push to main, uploads as artifact (no Android Studio needed)
 - [ ] End-to-end test on device: new UPI SMS → appears in queue → approve → shows in expense list
 
 ---

@@ -10,4 +10,6 @@ dist/
 .DS_Store
 android/
 ios/
+# un-ignore the Capacitor Android project inside apps/web
+!apps/web/android/
 bun.lock
