@@ -3,6 +3,18 @@
 
 export const PENDING_JOIN_KEY = "khata_pending_join";
 
+// Pull a join token out of any string that contains a `/join/<token>` path —
+// a full invite URL (from a scanned QR), a bare path, or the token alone.
+// Returns null if there's nothing that looks like a token.
+export function parseJoinToken(text: string): string | null {
+  const trimmed = text.trim();
+  const m = trimmed.match(/\/join\/([A-Za-z0-9_-]+)/);
+  if (m) return m[1];
+  // A bare token (the QR held just the id, no URL).
+  if (/^[A-Za-z0-9_-]{16,}$/.test(trimmed)) return trimmed;
+  return null;
+}
+
 export function captureJoinFromUrl(): void {
   const m = window.location.pathname.match(/^\/join\/([^/?#]+)/);
   if (m) {

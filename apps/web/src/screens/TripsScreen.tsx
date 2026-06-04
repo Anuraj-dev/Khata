@@ -3,11 +3,13 @@ import { useNavigate } from "react-router";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { CreateTripDrawer } from "../components/CreateTripDrawer";
+import { ScanInviteSheet } from "../components/ScanInviteSheet";
 
 export function TripsScreen() {
   const navigate = useNavigate();
   const trips = useQuery(api.trips.listTrips, {});
   const [createOpen, setCreateOpen] = useState(false);
+  const [scanOpen, setScanOpen] = useState(false);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-y-auto pb-24">
@@ -15,13 +17,22 @@ export function TripsScreen() {
         <h2 className="text-base font-semibold" style={{ color: "var(--color-text-primary)" }}>
           Trips
         </h2>
-        <button
-          onClick={() => setCreateOpen(true)}
-          className="rounded-xl px-3 py-1.5 text-sm font-semibold"
-          style={{ background: "var(--color-accent)", color: "var(--color-bg)" }}
-        >
-          + New
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setScanOpen(true)}
+            className="rounded-xl px-3 py-1.5 text-sm font-semibold"
+            style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-default)", color: "var(--color-text-primary)" }}
+          >
+            Scan
+          </button>
+          <button
+            onClick={() => setCreateOpen(true)}
+            className="rounded-xl px-3 py-1.5 text-sm font-semibold"
+            style={{ background: "var(--color-accent)", color: "var(--color-bg)" }}
+          >
+            + New
+          </button>
+        </div>
       </div>
 
       {trips === undefined && (
@@ -92,6 +103,8 @@ export function TripsScreen() {
           navigate(`/trips/${id}`);
         }}
       />
+
+      <ScanInviteSheet open={scanOpen} onClose={() => setScanOpen(false)} />
     </div>
   );
 }

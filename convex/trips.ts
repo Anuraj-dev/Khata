@@ -179,6 +179,73 @@ export const createTrip = mutation({
   },
 });
 
+// Add a participant to an existing trip (owner only). Free-text name, deduped
+// case-insensitively; "You" is reserved for the owner's own slot.
+export const addTripMember = mutation({
+  args: { tripId: v.id("trips"), member: v.string() },
+  handler: async (ctx, { tripId, member }) => {
+    const owner = await requireTokenIdentifier(ctx);
+    const trip = await ctx.db.get(tripId);
+    if (!trip || trip.ownerTokenIdentifier !== owner) throw new Error("Not found");
+    const name = member.trim();
+    if (!name) throw new Error("Name required");
+    if (name === SELF) throw new Error('"You" is reserved');
+    if (trip.members.some((m) => m.toLowerCase() === name.toLowerCase())) {
+      throw new Error("That member already exists");
+    }
+    await ctx.db.patch(tripId, { members: [...trip.members, name], updatedAt: Date.now() });
+  },
+});
+
+// Remove a participant (owner only). Blocked if they appear on any expense or
+// settlement — removing them would silently distort the balances; the user must
+// clear those first. Also drops any viewer link that claimed this slot.
+export const removeTripMember = mutation({
+  args: { tripId: v.id("trips"), member: v.string() },
+  handler: async (ctx, { tripId, member }) => {
+    const owner = await requireTokenIdentifier(ctx);
+    const trip = await ctx.db.get(tripId);
+    if (!trip || trip.ownerTokenIdentifier !== owner) throw new Error("Not found");
+    if (member === SELF) throw new Error("You can't remove yourself");
+    if (!trip.members.includes(member)) throw new Error("Not a member");
+
+    const expenses = await ctx.db
+      .query("tripExpenses")
+      .withIndex("by_owner_trip", (q) =>
+        q.eq("ownerTokenIdentifier", owner).eq("tripId", tripId)
+      )
+      .collect();
+    const onExpense = expenses.some(
+      (e) =>
+        e.paidBy === member ||
+        e.splitAmong.includes(member) ||
+        (e.shares?.some((s) => s.member === member) ?? false)
+    );
+    if (onExpense) throw new Error("They're on some expenses — edit those first");
+
+    const payments = await ctx.db
+      .query("settlements")
+      .withIndex("by_owner_trip", (q) =>
+        q.eq("ownerTokenIdentifier", owner).eq("tripId", tripId)
+      )
+      .collect();
+    if (payments.some((p) => p.fromMember === member || p.toMember === member)) {
+      throw new Error("They have settlement payments — undo those first");
+    }
+
+    const link = await ctx.db
+      .query("tripMemberLinks")
+      .withIndex("by_trip_member", (q) => q.eq("tripId", tripId).eq("member", member))
+      .unique();
+    if (link) await ctx.db.delete(link._id);
+
+    await ctx.db.patch(tripId, {
+      members: trip.members.filter((m) => m !== member),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
 const splitModeValidator = v.optional(v.union(v.literal("equal"), v.literal("custom")));
 const sharesValidator = v.optional(
   v.array(v.object({ member: v.string(), amount: v.number() }))
