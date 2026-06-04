@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.7.0](https://github.com/Anuraj-dev/Khata/compare/v0.6.0...v0.7.0) (2026-06-04)
+
+
+### Features
+
+* **trips:** clear all trips with biometric confirmation ([2d84d64](https://github.com/Anuraj-dev/Khata/commit/2d84d64d1cd4f2523e22412b7d50f3e53d7a7f1c))
+* **trips:** clear-all-trips with biometric confirmation ([07e8984](https://github.com/Anuraj-dev/Khata/commit/07e8984664fd6fb61938f809ffe9e9a581e95093))
+
+
+### Bug Fixes
+
+* use local date in toIsoDate (fixes TODAY label after midnight) ([0ab5fbb](https://github.com/Anuraj-dev/Khata/commit/0ab5fbbd843074b19ed469f5ae1206c79b59b655))
+* use local date in toIsoDate instead of UTC ([1a568bd](https://github.com/Anuraj-dev/Khata/commit/1a568bdf339a2d1c53de4fefa744be7f3948a4bd))
+
 ## [0.6.0](https://github.com/Anuraj-dev/Khata/compare/v0.5.0...v0.6.0) (2026-06-04)
 
 
