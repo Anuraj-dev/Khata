@@ -22,6 +22,7 @@ export function CreateTripDrawer({ open, onClose, onCreated }: Props) {
   const [newMember, setNewMember] = useState("");
   const [saving, setSaving] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
+  const memberRef = useRef<HTMLInputElement>(null);
 
   // Focus the name field only once the sheet is actually open. A bare `autoFocus`
   // attribute fires on mount even while the sheet sits closed off-screen, which
@@ -41,12 +42,13 @@ export function CreateTripDrawer({ open, onClose, onCreated }: Props) {
 
   function addMember() {
     const m = newMember.trim();
-    if (!m || members.some((x) => x.toLowerCase() === m.toLowerCase())) {
-      setNewMember("");
-      return;
-    }
-    setMembers((prev) => [...prev, m]);
     setNewMember("");
+    // Keep focus on the input so the keyboard stays up for the next member —
+    // tapping "Add" (or hitting the button) otherwise blurs it and drops the
+    // keyboard, forcing a re-tap each time.
+    memberRef.current?.focus();
+    if (!m || members.some((x) => x.toLowerCase() === m.toLowerCase())) return;
+    setMembers((prev) => [...prev, m]);
   }
 
   async function handleCreate() {
@@ -108,6 +110,7 @@ export function CreateTripDrawer({ open, onClose, onCreated }: Props) {
           </div>
           <div className="flex gap-2">
             <input
+              ref={memberRef}
               type="text"
               placeholder="Add member name"
               value={newMember}
