@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
@@ -15,38 +15,67 @@ type Props = {
 
 export function SettingsScreen({ showToast }: Props) {
   const navigate = useNavigate();
-  const clearAll = useMutation(api.expenses.clearAll);
-  const [busy, setBusy] = useState(false);
-  const [typedConfirm, setTypedConfirm] = useState<string | null>(null); // fallback modal text
+  const clearAllExpenses = useMutation(api.expenses.clearAll);
+  const clearAllTrips = useMutation(api.trips.clearAll);
+  const [expenseBusy, setExpenseBusy] = useState(false);
+  const [tripBusy, setTripBusy] = useState(false);
+  const [typedExpenseConfirm, setTypedExpenseConfirm] = useState<string | null>(null);
+  const [typedTripConfirm, setTypedTripConfirm] = useState<string | null>(null);
 
-  async function doClear() {
-    setBusy(true);
+  async function doClearExpenses() {
+    setExpenseBusy(true);
     try {
-      const { deleted } = await clearAll({});
+      const { deleted } = await clearAllExpenses({});
       expenseStore.clearAllLocal();
-      setTypedConfirm(null);
+      setTypedExpenseConfirm(null);
       showToast({ kind: "info", message: `Cleared ${deleted} expense${deleted === 1 ? "" : "s"}.` });
       navigate("/");
     } catch {
       showToast({ kind: "error", message: "Couldn't clear data. Try again." });
     } finally {
-      setBusy(false);
+      setExpenseBusy(false);
     }
   }
 
-  async function handleClearPress() {
-    // Confirm via fingerprint / device PIN on native; fall back to a typed
-    // confirmation where biometrics aren't available (web, or unenrolled device).
+  async function doClearTrips() {
+    setTripBusy(true);
+    try {
+      const { deleted } = await clearAllTrips({});
+      setTypedTripConfirm(null);
+      showToast({ kind: "info", message: `Cleared ${deleted} trip${deleted === 1 ? "" : "s"}.` });
+      navigate("/");
+    } catch {
+      showToast({ kind: "error", message: "Couldn't clear trips. Try again." });
+    } finally {
+      setTripBusy(false);
+    }
+  }
+
+  async function handleClearExpensesPress() {
     const result = await requireDeviceAuth({
       title: "Confirm to erase all expenses",
       subtitle: "This permanently deletes every logged expense.",
     });
     if (result === "ok") {
-      await doClear();
+      await doClearExpenses();
     } else if (result === "failed") {
       showToast({ kind: "error", message: "Authentication cancelled." });
     } else {
-      setTypedConfirm("");
+      setTypedExpenseConfirm("");
+    }
+  }
+
+  async function handleClearTripsPress() {
+    const result = await requireDeviceAuth({
+      title: "Confirm to erase all trips",
+      subtitle: "This permanently deletes every trip and its expenses.",
+    });
+    if (result === "ok") {
+      await doClearTrips();
+    } else if (result === "failed") {
+      showToast({ kind: "error", message: "Authentication cancelled." });
+    } else {
+      setTypedTripConfirm("");
     }
   }
 
@@ -76,8 +105,15 @@ export function SettingsScreen({ showToast }: Props) {
           title="Clear all expenses"
           subtitle="Erase every expense on this account. Requires device unlock."
           danger
-          disabled={busy}
-          onClick={handleClearPress}
+          disabled={expenseBusy}
+          onClick={handleClearExpensesPress}
+        />
+        <Row
+          title="Clear all trips"
+          subtitle="Erase every trip, shared expense, and settlement. Requires device unlock."
+          danger
+          disabled={tripBusy}
+          onClick={handleClearTripsPress}
         />
       </Section>
 
@@ -85,13 +121,27 @@ export function SettingsScreen({ showToast }: Props) {
         <Row title="Sign out" subtitle="You'll need to sign in again." onClick={handleSignOut} />
       </Section>
 
-      {typedConfirm !== null && (
+      {typedExpenseConfirm !== null && (
         <TypedConfirm
-          value={typedConfirm}
-          onChange={setTypedConfirm}
-          busy={busy}
-          onCancel={() => setTypedConfirm(null)}
-          onConfirm={doClear}
+          title="Erase all expenses?"
+          description={<>This can't be undone. Type <span className="font-bold">DELETE</span> to confirm.</>}
+          value={typedExpenseConfirm}
+          onChange={setTypedExpenseConfirm}
+          busy={expenseBusy}
+          onCancel={() => setTypedExpenseConfirm(null)}
+          onConfirm={doClearExpenses}
+        />
+      )}
+
+      {typedTripConfirm !== null && (
+        <TypedConfirm
+          title="Erase all trips?"
+          description={<>This can't be undone. Type <span className="font-bold">DELETE</span> to confirm.</>}
+          value={typedTripConfirm}
+          onChange={setTypedTripConfirm}
+          busy={tripBusy}
+          onCancel={() => setTypedTripConfirm(null)}
+          onConfirm={doClearTrips}
         />
       )}
     </div>
@@ -212,12 +262,16 @@ function Row({
 }
 
 function TypedConfirm({
+  title,
+  description,
   value,
   onChange,
   busy,
   onCancel,
   onConfirm,
 }: {
+  title: string;
+  description: React.ReactNode;
   value: string;
   onChange: (v: string) => void;
   busy: boolean;
@@ -232,10 +286,10 @@ function TypedConfirm({
         style={{ background: "var(--color-surface-elevated)" }}
       >
         <h3 className="text-base font-semibold" style={{ color: "var(--color-text-primary)" }}>
-          Erase all expenses?
+          {title}
         </h3>
         <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
-          This can't be undone. Type <span className="font-bold">DELETE</span> to confirm.
+          {description}
         </p>
         <input
           autoFocus
