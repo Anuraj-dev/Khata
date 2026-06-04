@@ -6,6 +6,7 @@ on:
       - main
 jobs:
   build:
+    name: Typecheck + build (web)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -15,6 +16,12 @@ jobs:
           bun-version: latest
       - name: Install dependencies
         run: bun install --frozen-lockfile
-      - name: Typecheck mobile
-        working-directory: apps/mobile
+      - name: Typecheck
+        working-directory: apps/web
         run: bun run typecheck
+      - name: Build
+        working-directory: apps/web
+        env:
+          VITE_CONVEX_URL: https://placeholder.convex.cloud
+          VITE_GOOGLE_CLIENT_ID: placeholder
+        run: bun run build

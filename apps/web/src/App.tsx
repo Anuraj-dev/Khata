@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { Routes, Route, Outlet } from "react-router";
 import { useConvexAuth } from "convex/react";
+import { Capacitor } from "@capacitor/core";
 import { ConvexClientProvider } from "./lib/convex";
 import { RootErrorBoundary } from "./components/RootErrorBoundary";
 import { BootScreen } from "./components/BootScreen";
@@ -11,8 +12,10 @@ import { AddExpenseDrawer } from "./components/AddExpenseDrawer";
 import { ExpensesScreen } from "./screens/ExpensesScreen";
 import { TripsScreen } from "./screens/TripsScreen";
 import { InsightsScreen } from "./screens/InsightsScreen";
+import { SmsQueueScreen } from "./screens/SmsQueueScreen";
 import { useExpenseMutations } from "./hooks/useExpenseMutations";
 import { useRetryQueue } from "./hooks/useRetryQueue";
+import { useSmsPoller } from "./hooks/useSmsPoller";
 import type { RetryPayload } from "./hooks/useRetryQueue";
 import { useLocation } from "react-router";
 
@@ -38,6 +41,7 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
   });
 
   const { addExpense } = useExpenseMutations({ showToast, enqueueRetry });
+  useSmsPoller();
 
   return (
     <div className="flex flex-col h-full" style={{ background: "var(--color-bg)" }}>
@@ -85,6 +89,10 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
               />
             }
           />
+          {/* SMS-derived UPI inbox is native-only; never expose SMS UI on web. */}
+          {Capacitor.isNativePlatform() && (
+            <Route path="upi" element={<SmsQueueScreen />} />
+          )}
           <Route path="trips" element={<TripsScreen />} />
           <Route path="insights" element={<InsightsScreen />} />
           <Route path="*" element={<Outlet />} />

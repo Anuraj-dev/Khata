@@ -96,19 +96,20 @@
 
 ### Micro-steps
 
-- [ ] `capacitor.config.ts` — add Capacitor to `apps/web/`, configure `appId`, `appName`
-- [ ] `capacitor-sms` plugin — install `capacitor-sms` or `@capacitor-community/sms-retriever`; confirm Android SMS_RECEIVE permission
-- [ ] `src/lib/smsPoller.ts` — poll for new SMS on native platform; no-op on web (`Capacitor.isNativePlatform()` gate)
-- [ ] `src/lib/smsParser.ts` — regex parser: extract amount (paise), merchant, UPI ref from common bank SMS templates
-- [ ] `convex/smsQueue.ts` — mutation `enqueueSms` + query `pendingSmsQueue`; table `smsQueue` (status: pending/approved/rejected)
-- [ ] Update `convex/schema.ts` — add `smsQueue` table
-- [ ] `src/components/SmsApprovalCard.tsx` — card showing parsed UPI tx: amount, merchant, "Add as expense" / "Reject" buttons
-- [ ] `src/screens/SmsQueueScreen.tsx` — list of pending SMS approvals; empty state when none
-- [ ] `src/components/BottomNavBar.tsx` — add badge count for pending SMS queue
-- [ ] Wire approve action → calls `addExpense` mutation + marks SMS approved
-- [ ] Wire reject action → marks SMS rejected (hides from queue)
-- [ ] `apps/web/android/` — `npx cap add android`; set SMS permission in `AndroidManifest.xml`
-- [ ] End-to-end test: send test SMS → appears in queue → approve → shows in expense list
+- [x] `capacitor.config.ts` — add Capacitor to `apps/web/`, configure `appId`, `appName`
+- [x] Install `@capacitor/core`, `@capacitor/cli`, `@capacitor/android`
+- [x] `src/lib/smsPoller.ts` — custom `SmsReader` plugin interface; web stub no-op; `pollForUpiSms()` returns parsed messages
+- [x] `src/hooks/useSmsPoller.ts` — React hook: polls every 30 s on native, enqueues to Convex; skips on web
+- [x] `src/lib/smsParser.ts` — regex parser covering 12+ bank formats (already existed)
+- [x] `convex/smsQueue.ts` — `listPending`, `enqueue`, `approve`, `reject` (already existed)
+- [x] `convex/schema.ts` — `smsReviewQueue` table (already existed)
+- [x] `src/components/SmsApprovalCard.tsx` — card: amount/direction, party, UPI ref, raw SMS toggle, approve form (category + note), reject
+- [x] `src/screens/SmsQueueScreen.tsx` — pending list + empty state
+- [x] `src/components/BottomNavBar.tsx` — UPI tab added; badge shows pending count
+- [x] Wire approve → `smsQueue.approve` mutation (creates expense + marks approved)
+- [x] Wire reject → `smsQueue.reject` mutation
+- [ ] `apps/web/android/` — run `npx cap add android` (needs Android Studio / SDK); set `READ_SMS` + `RECEIVE_SMS` in `AndroidManifest.xml`; implement `SmsPlugin.java` using `ContentResolver` to query `Telephony.Sms.Inbox`, register in `MainActivity.java`
+- [ ] End-to-end test on device: new UPI SMS → appears in queue → approve → shows in expense list
 
 ---
 
