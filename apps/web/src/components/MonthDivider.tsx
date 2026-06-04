@@ -7,8 +7,10 @@ type Props = {
 };
 
 // Sticky-feeling separator shown when the list crosses into a new month, so a
-// year of history stays scannable instead of an endless flat day list.
+// year of history stays scannable instead of an endless flat day list. Shows
+// the month's net only (received − spent) — green when up, red when down.
 export function MonthDivider({ isoDate, totalDebit, totalCredit }: Props) {
+  const net = totalCredit - totalDebit;
   return (
     <div
       className="flex items-baseline justify-between px-4 pt-6 pb-2"
@@ -20,18 +22,14 @@ export function MonthDivider({ isoDate, totalDebit, totalCredit }: Props) {
       >
         {monthLabel(isoDate)}
       </span>
-      <div className="flex gap-3 tabular-nums">
-        {totalCredit > 0 && (
-          <span className="text-xs" style={{ color: "var(--color-credit)", fontFamily: "var(--font-mono)" }}>
-            +{formatRupees(totalCredit)}
-          </span>
-        )}
-        {totalDebit > 0 && (
-          <span className="text-xs" style={{ color: "var(--color-debit)", fontFamily: "var(--font-mono)" }}>
-            −{formatRupees(totalDebit)}
-          </span>
-        )}
-      </div>
+      {net !== 0 && (
+        <span
+          className="text-xs tabular-nums"
+          style={{ color: net > 0 ? "var(--color-credit)" : "var(--color-debit)", fontFamily: "var(--font-mono)" }}
+        >
+          {net > 0 ? "+" : "−"}{formatRupees(Math.abs(net))}
+        </span>
+      )}
     </div>
   );
 }
