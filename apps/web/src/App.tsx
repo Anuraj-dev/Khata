@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Routes, Route, Outlet } from "react-router";
 import { useConvexAuth } from "convex/react";
 import { Capacitor } from "@capacitor/core";
@@ -13,8 +13,10 @@ import { ExpensesScreen } from "./screens/ExpensesScreen";
 import { TripsScreen } from "./screens/TripsScreen";
 import { TripDetailScreen } from "./screens/TripDetailScreen";
 import { InsightsScreen } from "./screens/InsightsScreen";
+import { JoinTripScreen } from "./screens/JoinTripScreen";
 import { SmsQueueScreen } from "./screens/SmsQueueScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
+import { captureJoinFromUrl, takePendingJoin } from "./lib/joinLink";
 import { useExpenseMutations } from "./hooks/useExpenseMutations";
 import { useRetryQueue } from "./hooks/useRetryQueue";
 import { useSmsPoller } from "./hooks/useSmsPoller";
@@ -46,6 +48,16 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
 
   const { addExpense } = useExpenseMutations({ showToast, enqueueRetry });
   useSmsPoller();
+
+  // Resume a trip invite that was opened before sign-in (the token was stashed
+  // pre-auth so it survives the OAuth round-trip).
+  useEffect(() => {
+    const token = takePendingJoin();
+    if (token && location.pathname !== `/join/${token}`) {
+      navigate(`/join/${token}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="flex flex-col h-full" style={{ background: "var(--color-bg)" }}>
@@ -110,6 +122,7 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
           )}
           <Route path="trips" element={<TripsScreen />} />
           <Route path="trips/:tripId" element={<TripDetailScreen />} />
+          <Route path="join/:token" element={<JoinTripScreen />} />
           <Route path="insights" element={<InsightsScreen />} />
           <Route path="settings" element={<SettingsScreen showToast={showToast} />} />
           <Route path="*" element={<Outlet />} />
@@ -148,6 +161,10 @@ function DeepLinkHandler() {
 }
 
 export function App() {
+  // Stash an invite token from the initial URL before auth runs, so a not-yet-
+  // signed-in recipient still lands on the trip after the OAuth round-trip.
+  useEffect(() => { captureJoinFromUrl(); }, []);
+
   return (
     <RootErrorBoundary>
       <ConvexClientProvider>

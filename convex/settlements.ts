@@ -1,14 +1,19 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireTokenIdentifier } from "./authHelpers";
+import { resolveTripAccess } from "./tripAccess";
 
 export const listByTrip = query({
   args: { tripId: v.id("trips") },
   handler: async (ctx, { tripId }) => {
-    const owner = await requireTokenIdentifier(ctx);
+    const caller = await requireTokenIdentifier(ctx);
+    const access = await resolveTripAccess(ctx, tripId, caller);
+    if (!access) return [];
     return ctx.db
       .query("settlements")
-      .withIndex("by_owner_trip", (q) => q.eq("ownerTokenIdentifier", owner).eq("tripId", tripId))
+      .withIndex("by_owner_trip", (q) =>
+        q.eq("ownerTokenIdentifier", access.trip.ownerTokenIdentifier).eq("tripId", tripId)
+      )
       .order("desc")
       .collect();
   },
