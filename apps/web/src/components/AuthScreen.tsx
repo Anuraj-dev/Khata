@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
-import { authClient } from "../lib/auth-client";
+import { authClient, signInWithGoogleWeb } from "../lib/auth-client";
 import { logger } from "../lib/logger";
+import { Button } from "./Button";
+import { BrandMark } from "./BrandMark";
 
 // Custom URL scheme registered in AndroidManifest.xml. Better Auth redirects here
 // after Google OAuth; the deep-link handler (useDeepLinkAuth) catches it.
@@ -36,7 +38,7 @@ export function AuthScreen() {
         });
         await Browser.open({ url: data.url });
       } else {
-        await authClient.signIn.social({ provider: "google", callbackURL: "/" });
+        await signInWithGoogleWeb();
       }
     } catch (err) {
       logger.error("google_signin_failed", { error: String(err) });
@@ -51,12 +53,7 @@ export function AuthScreen() {
       style={{ background: "var(--color-bg)" }}
     >
       <div className="flex flex-col items-center gap-2">
-        <span
-          className="text-5xl font-bold"
-          style={{ color: "var(--color-accent)", fontFamily: "var(--font-mono)" }}
-        >
-          ₹
-        </span>
+        <BrandMark size={64} />
         <h1
           className="text-3xl font-bold tracking-tight"
           style={{ color: "var(--color-text-primary)" }}
@@ -72,26 +69,15 @@ export function AuthScreen() {
       </div>
 
       <div className="flex flex-col items-center gap-3 w-full max-w-xs">
-        <button
+        <Button
+          variant="secondary"
+          fullWidth
+          loading={loading}
+          leftIcon={<GoogleIcon />}
           onClick={handleGoogleSignIn}
-          disabled={loading}
-          className="flex items-center justify-center gap-3 w-full py-3 px-4 rounded-xl font-medium transition-opacity disabled:opacity-60"
-          style={{
-            background: "var(--color-surface-elevated)",
-            color: "var(--color-text-primary)",
-            border: "1px solid var(--color-border-default)",
-          }}
         >
-          {loading ? (
-            <div
-              className="w-5 h-5 rounded-full border-2 border-t-transparent animate-spin"
-              style={{ borderColor: "var(--color-text-secondary)", borderTopColor: "transparent" }}
-            />
-          ) : (
-            <GoogleIcon />
-          )}
-          <span>{loading ? "Signing in…" : "Continue with Google"}</span>
-        </button>
+          {loading ? "Signing in…" : "Continue with Google"}
+        </Button>
 
         {error && (
           <p className="text-xs text-center" style={{ color: "var(--color-error)" }}>

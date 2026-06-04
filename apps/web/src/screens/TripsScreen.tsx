@@ -4,6 +4,8 @@ import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { CreateTripDrawer } from "../components/CreateTripDrawer";
 import { ScanInviteSheet } from "../components/ScanInviteSheet";
+import { Button } from "../components/Button";
+import { LuggageIcon, ChevronRight, PlusIcon } from "../components/icons";
 
 export function TripsScreen() {
   const navigate = useNavigate();
@@ -18,20 +20,12 @@ export function TripsScreen() {
           Trips
         </h2>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setScanOpen(true)}
-            className="rounded-xl px-3 py-1.5 text-sm font-semibold"
-            style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-default)", color: "var(--color-text-primary)" }}
-          >
+          <Button variant="secondary" size="sm" onClick={() => setScanOpen(true)}>
             Scan
-          </button>
-          <button
-            onClick={() => setCreateOpen(true)}
-            className="rounded-xl px-3 py-1.5 text-sm font-semibold"
-            style={{ background: "var(--color-accent)", color: "var(--color-bg)" }}
-          >
-            + New
-          </button>
+          </Button>
+          <Button size="sm" leftIcon={<PlusIcon size={16} />} onClick={() => setCreateOpen(true)}>
+            New
+          </Button>
         </div>
       </div>
 
@@ -43,15 +37,16 @@ export function TripsScreen() {
 
       {trips && trips.length === 0 && (
         <div className="flex flex-col flex-1 items-center justify-center gap-3 px-6 pb-16" style={{ color: "var(--color-text-secondary)" }}>
-          <span style={{ fontSize: 40, opacity: 0.4 }}>🧳</span>
-          <p className="text-sm text-center">No trips yet. Create one to split shared expenses with friends.</p>
-          <button
-            onClick={() => setCreateOpen(true)}
-            className="rounded-xl px-4 py-2 text-sm font-semibold"
-            style={{ background: "var(--color-accent)", color: "var(--color-bg)" }}
+          <span
+            className="flex h-16 w-16 items-center justify-center"
+            style={{ borderRadius: "var(--radius-xl)", background: "var(--color-accent-bg)", color: "var(--color-accent)" }}
           >
+            <LuggageIcon size={30} />
+          </span>
+          <p className="text-sm text-center">No trips yet. Create one to split shared expenses with friends.</p>
+          <Button leftIcon={<PlusIcon size={16} />} onClick={() => setCreateOpen(true)}>
             Create a trip
-          </button>
+          </Button>
         </div>
       )}
 
@@ -61,14 +56,14 @@ export function TripsScreen() {
             <button
               key={trip._id}
               onClick={() => navigate(`/trips/${trip._id}`)}
-              className="flex items-center gap-3 px-4 py-3.5 text-left active:opacity-70 transition-opacity"
-              style={{ borderBottom: "1px solid var(--color-border-subtle)" }}
+              className="flex items-center gap-3 px-4 py-3.5 text-left transition-colors active:[background:var(--color-surface-elevated)]"
+              style={{ borderBottom: "1px solid var(--color-border-subtle)", transitionDuration: "var(--dur-fast)", cursor: "pointer" }}
             >
               <div
-                className="flex items-center justify-center w-10 h-10 rounded-full shrink-0 text-lg"
-                style={{ background: "var(--color-accent-subtle)" }}
+                className="flex items-center justify-center w-10 h-10 shrink-0"
+                style={{ borderRadius: "var(--radius-md)", background: "var(--color-accent-bg)", color: "var(--color-accent)", boxShadow: "inset 0 0 0 1px var(--color-accent-border)" }}
               >
-                🧳
+                <LuggageIcon size={20} />
               </div>
               <div className="flex flex-col flex-1 min-w-0">
                 <span className="text-sm font-medium truncate" style={{ color: "var(--color-text-primary)" }}>
@@ -88,7 +83,9 @@ export function TripsScreen() {
                   Settled
                 </span>
               ) : (
-                <span style={{ color: "var(--color-text-muted)" }}>›</span>
+                <span className="shrink-0" style={{ color: "var(--color-text-muted)" }}>
+                  <ChevronRight size={18} strokeWidth={2} />
+                </span>
               )}
             </button>
           ))}

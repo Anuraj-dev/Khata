@@ -35,6 +35,45 @@
   --font-sans: "Geist", system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, monospace;
 
+  /* Radius scale */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-pill: 9999px;
+
+  /* Spacing scale (inline-style usage; Tailwind handles most layout) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Depth — tuned dark + low-saturation so cards read as lifted, not glowing */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-accent: 0 4px 24px rgba(245, 158, 11, 0.35);
+  --shadow-accent-soft: 0 6px 30px rgba(245, 158, 11, 0.18);
+
+  /* Accent tints */
+  --color-accent-hover: #fbbf24;
+  --color-accent-bg: rgba(245, 158, 11, 0.1);
+  --color-accent-border: rgba(245, 158, 11, 0.3);
+
+  /* Gradients */
+  --gradient-accent: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+  --gradient-hero: radial-gradient(120% 80% at 50% 0%, rgba(245, 158, 11, 0.14) 0%, rgba(245, 158, 11, 0.04) 35%, transparent 70%);
+  --gradient-surface: linear-gradient(180deg, var(--color-surface-elevated) 0%, var(--color-surface) 100%);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 150ms;
+  --dur-mid: 220ms;
+  --dur-slow: 300ms;
+
   color-scheme: dark;
 }
 
@@ -65,4 +104,44 @@ html, body {
 }
 .pt-safe {
   padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Visible keyboard focus for all interactive elements */
+:where(button, a, input, [role="button"], [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Landing owns its own scroll (AppShell main is overflow-hidden; landing
+   renders outside AppShell) */
+.landing-scroll {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Reveal-on-scroll / entrance base used by landing sections + toast */
+@keyframes khata-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Honor reduced-motion globally — covers landing animations + existing transitions */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -4,6 +4,7 @@ import { api } from "@convex/_generated/api";
 import type { Doc } from "@convex/_generated/dataModel";
 import { formatRupees, toIsoDate } from "../lib/dates";
 import { useCategories } from "../hooks/useCategories";
+import { ChevronLeft, ChevronRight } from "../components/icons";
 
 const MONTHS_BACK = 6;
 
@@ -75,11 +76,11 @@ export function InsightsScreen() {
         <button
           onClick={() => setOffset((o) => Math.max(o - 1, -(MONTHS_BACK - 1)))}
           disabled={selectedIndex <= 0}
-          className="px-2 py-1 text-lg disabled:opacity-30"
-          style={{ color: "var(--color-text-secondary)", background: "none", border: "none" }}
+          className="flex h-10 w-10 items-center justify-center disabled:opacity-30"
+          style={{ color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer" }}
           aria-label="Previous month"
         >
-          ‹
+          <ChevronLeft size={20} strokeWidth={2} />
         </button>
         <span className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
           {selected ? monthName(selected.year, selected.month0) : ""}
@@ -87,11 +88,11 @@ export function InsightsScreen() {
         <button
           onClick={() => setOffset((o) => Math.min(o + 1, 0))}
           disabled={offset >= 0}
-          className="px-2 py-1 text-lg disabled:opacity-30"
-          style={{ color: "var(--color-text-secondary)", background: "none", border: "none" }}
+          className="flex h-10 w-10 items-center justify-center disabled:opacity-30"
+          style={{ color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer" }}
           aria-label="Next month"
         >
-          ›
+          <ChevronRight size={20} strokeWidth={2} />
         </button>
       </div>
 
@@ -149,13 +150,15 @@ export function InsightsScreen() {
                 key={b.key}
                 onClick={() => setOffset(i - (buckets.length - 1))}
                 className="flex flex-1 flex-col items-center justify-end gap-1 h-full"
-                style={{ background: "none", border: "none" }}
+                style={{ background: "none", border: "none", cursor: "pointer" }}
               >
                 <div
-                  className="w-full rounded-t-md transition-all"
+                  className="w-full transition-all"
                   style={{
                     height: `${Math.max(heightPct, 2)}%`,
-                    background: isSel ? "var(--color-accent)" : "var(--color-surface-elevated)",
+                    background: isSel ? "var(--gradient-accent)" : "var(--color-surface-elevated)",
+                    borderRadius: "var(--radius-sm) var(--radius-sm) 0 0",
+                    boxShadow: isSel ? "var(--shadow-accent-soft)" : "none",
                   }}
                 />
                 <span className="text-[10px]" style={{ color: isSel ? "var(--color-accent)" : "var(--color-text-muted)" }}>
@@ -172,7 +175,15 @@ export function InsightsScreen() {
 
 function Stat({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="flex flex-1 flex-col gap-1 rounded-xl px-4 py-3" style={{ background: "var(--color-surface)" }}>
+    <div
+      className="flex flex-1 flex-col gap-1 px-4 py-3"
+      style={{
+        background: "var(--gradient-surface)",
+        border: "1px solid var(--color-border-subtle)",
+        borderRadius: "var(--radius-lg)",
+        boxShadow: "var(--shadow-card)",
+      }}
+    >
       <span className="text-xs font-medium uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>
         {label}
       </span>

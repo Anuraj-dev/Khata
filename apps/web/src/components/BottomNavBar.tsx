@@ -45,6 +45,7 @@ export function BottomNavBar() {
       style={{
         background: "var(--color-surface)",
         borderColor: "var(--color-border-subtle)",
+        boxShadow: "0 -1px 0 rgba(0,0,0,0.3)",
       }}
     >
       {tabs.map((tab) => {
@@ -56,15 +57,27 @@ export function BottomNavBar() {
           <button
             key={tab.id}
             onClick={() => navigate(tab.path)}
-            className="flex flex-1 flex-col items-center justify-center gap-1 py-3 transition-colors relative"
+            className="flex flex-1 flex-col items-center justify-center gap-1 py-3 relative"
             style={{
               color: isActive ? "var(--color-accent)" : "var(--color-text-muted)",
               background: "none",
               border: "none",
               cursor: "pointer",
+              transition: "color var(--dur-fast) var(--ease-out)",
             }}
           >
-            <div className="relative">{tab.icon(isActive)}</div>
+            {/* Active-tab top indicator */}
+            <span
+              aria-hidden="true"
+              className="absolute top-0 left-1/2 h-[3px] w-8 -translate-x-1/2"
+              style={{
+                borderRadius: "var(--radius-pill)",
+                background: "var(--gradient-accent)",
+                opacity: isActive ? 1 : 0,
+                transition: "opacity var(--dur-fast) var(--ease-out)",
+              }}
+            />
+            <div className="relative active:scale-90 transition-transform duration-150">{tab.icon(isActive)}</div>
             <span
               className="text-xs font-medium"
               style={{ color: isActive ? "var(--color-accent)" : "var(--color-text-muted)" }}

@@ -2,6 +2,7 @@ import { useNavigate } from "react-router";
 import { useQuery } from "convex/react";
 import { Capacitor } from "@capacitor/core";
 import { api } from "@convex/_generated/api";
+import { MailIcon, ChevronRight } from "./icons";
 
 // Most UPI SMS auto-log straight to the list. The rare bank message we can't parse
 // confidently lands in the review queue — surface it here as a contextual nudge
@@ -17,13 +18,18 @@ export function ReviewBanner() {
   return (
     <button
       onClick={() => navigate("/review")}
-      className="flex items-center gap-3 mx-4 mt-3 px-3 py-2.5 rounded-xl text-left active:opacity-70 transition-opacity"
+      className="flex items-center gap-3 mx-4 mt-3 px-3 py-2.5 text-left transition-colors active:[background:var(--color-accent-bg)]"
       style={{
         background: "var(--color-accent-subtle)",
         border: "1px solid var(--color-accent-dim)",
+        borderRadius: "var(--radius-lg)",
+        transitionDuration: "var(--dur-fast)",
+        cursor: "pointer",
       }}
     >
-      <span className="text-lg">📨</span>
+      <span className="shrink-0" style={{ color: "var(--color-accent)" }}>
+        <MailIcon size={20} strokeWidth={2} />
+      </span>
       <div className="flex flex-col flex-1 min-w-0">
         <span className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>
           {count} message{count > 1 ? "s" : ""} need{count > 1 ? "" : "s"} review
@@ -32,7 +38,9 @@ export function ReviewBanner() {
           We couldn't auto-read {count > 1 ? "these" : "this one"} — tap to confirm
         </span>
       </div>
-      <span style={{ color: "var(--color-accent)" }}>›</span>
+      <span className="shrink-0" style={{ color: "var(--color-accent)" }}>
+        <ChevronRight size={18} strokeWidth={2} />
+      </span>
     </button>
   );
 }
