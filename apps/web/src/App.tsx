@@ -93,7 +93,7 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
       )}
 
       {/* Screen content */}
-      <main className="flex flex-col flex-1 overflow-hidden">
+      <main className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <Routes>
           <Route
             index

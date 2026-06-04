@@ -13,14 +13,10 @@ export default defineSchema({
     clientId: v.string(),
     amount: v.number(),
     note: v.string(),
-    category: v.union(
-      v.literal("food"),
-      v.literal("travel"),
-      v.literal("shopping"),
-      v.literal("bills"),
-      v.literal("health"),
-      v.literal("other")
-    ),
+    // Open string: built-in categories ("food", "travel", …) plus user-defined
+    // ones synced from the `categories` table. The client resolves the id to a
+    // label/emoji/color, falling back to a generic look for unknown ids.
+    category: v.string(),
     source: v.union(v.literal("manual"), v.literal("sms")),
     direction: v.union(v.literal("debit"), v.literal("credit")),
     upiRef: v.optional(v.string()),
@@ -32,6 +28,20 @@ export default defineSchema({
   })
     .index("by_owner", ["ownerTokenIdentifier"])
     .index("by_owner_date", ["ownerTokenIdentifier", "date"])
+    .index("by_owner_client_id", ["ownerTokenIdentifier", "clientId"]),
+
+  // User-defined expense categories. Built-in categories live only on the client;
+  // this table holds the extras the user adds. `clientId` is a slug derived from
+  // the label and is what gets stored on each expense's `category` field.
+  categories: defineTable({
+    clientId: v.string(),
+    label: v.string(),
+    emoji: v.string(),
+    color: v.string(),
+    ownerTokenIdentifier: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_owner", ["ownerTokenIdentifier"])
     .index("by_owner_client_id", ["ownerTokenIdentifier", "clientId"]),
 
   trips: defineTable({

@@ -149,6 +149,29 @@
 - [x] `InsightsScreen` — month switcher, per-month spend/received totals, category breakdown bars, 6-month trend
 - [ ] Push notifications, deeper charts (follow-up)
 
+### M5.1: Custom categories + UX fixes
+
+- [x] **Custom categories (Convex-synced).** `categories` table (clientId/label/emoji/color per owner); `convex/categories.ts` — `listCategories`/`addCategory` (idempotent on slug)/`deleteCategory`. Loosened `expenses.category` (+ `addExpense`/`updateExpense`/`smsQueue` args) from closed union to `v.string()`.
+- [x] `lib/categories.ts` — 6 built-ins + palette + `autoColor` (name-hash) + `slugify` + `resolveCategory` fallback for unknown ids
+- [x] `hooks/useCategories.ts` — merges built-ins + synced custom; `resolve`/`addCategory`/`deleteCategory`
+- [x] `components/AddCategoryForm.tsx` — reusable name + emoji creator (auto color)
+- [x] `CategoryPicker` — renders all categories + inline `+` chip that opens the add-form and auto-selects the new one
+- [x] Settings → Categories section: built-ins (read-only) + custom chips with delete + add
+- [x] `ExpenseCard` resolves category id → emoji/color/label via `meta` prop
+- [x] **Fix: Trips tab popped the keyboard** — `CreateTripDrawer` name input used a bare `autoFocus` that fired while the sheet sat closed off-screen; now focuses only on open
+- [x] **Fix: expense list unscrollable** — added missing `min-h-0` down the flex chain (`main` → screen → list) so the scroll container shrinks to the viewport; momentum scroll + overscroll-contain + sticky day headers. Applied `min-h-0` to Trips/Settings/Insights too.
+- [ ] Trip sharing (read-only, 1-week QR link) — design agreed, not yet built (see below)
+
+### M6 (proposed): Read-only trip sharing
+
+**Agreed model (from discussion):**
+- Member slots stay free-text for non-Khata people; a slot can be linked to a Khata user.
+- **QR/invite link expires after 1 week** — after expiry the trip can't be joined via that code (re-share to re-open).
+- Linked viewer gets **read-only forever** (only the owner edits expenses).
+- Home-screen "you owe ₹X" card aggregates the viewer's owed balances across shared trips; **a row disappears once that debt is settled** (synced with the trip).
+
+**Backend deltas (not built):** `tripShares` table (tripId → viewerToken, role: "viewer", expiresAt); share-token issue/redeem mutations with expiry check; trip queries that also return trips shared *to* you; cross-trip owed-balance aggregation for the home card; map a member slot → linked account.
+
 ---
 
 ## M4: Group Trip Splitter
@@ -168,6 +191,20 @@
 
 ### Notes
 - SMS capture limitation accepted (MVP): banks drop SMS for small UPI txns (SBI especially; HDFC < ₹100). Chose **Path A** — keep SMS auto-log + fast manual quick-add with an optional **date** field for missed/past entries. Email/Gmail capture (Path B) deferred.
+
+### M4.1 (planned, NOT built): Incremental per-person settle-up
+
+**Problem:** today settle-up is all-or-nothing — one "Mark as settled & close" button closes the whole trip. No way to mark one person paid while others haven't. Real life: people pay back at different times.
+
+**Agreed design (record-payment model, Splitwise-style):**
+- Each suggested transfer ("Amit pays You ₹500") gets a **tick**. Tapping it **records a real payment** (from→to→amount, timestamped) — not just a "ticked" flag.
+- Paid lines render **struck-through + green ✓**; unpaid stay highlighted. Recorded payments shown in a "Paid" group.
+- Recorded payments feed back into balance math: `net[from] += amt; net[to] -= amt`, then `simplifyDebts` on the adjusted net → remaining transfers recompute live.
+- **Key correctness rule:** adding a new expense after someone paid must NOT wipe/distort their recorded payment — it only adds their new share. (This is why we chose record-payment over freezing the suggested list.)
+- Trip auto-marks settled when no transfers remain; keep a manual close too.
+- Ties into M6: a settled debt drops off that person's "you owe" home card.
+
+**Backend:** already half-ready — `settlements.settledAt` field + unused `markSettled` mutation exist. Add a `recordPayment(tripId, from, to, amount)` mutation (inserts a settled `settlements` row) and a balance helper that subtracts recorded payments. Wire ticks in `TripDetailScreen`.
 
 ---
 

@@ -1,23 +1,6 @@
 import { formatRupees } from "../lib/dates";
-import type { LocalExpense, ExpenseCategory } from "../lib/expenseStorage";
-
-const CATEGORY_ICON: Record<ExpenseCategory, string> = {
-  food: "🍜",
-  travel: "✈️",
-  shopping: "🛍️",
-  bills: "🧾",
-  health: "💊",
-  other: "·",
-};
-
-const CATEGORY_COLOR: Record<ExpenseCategory, string> = {
-  food: "var(--color-food)",
-  travel: "var(--color-travel)",
-  shopping: "var(--color-shopping)",
-  bills: "var(--color-bills)",
-  health: "var(--color-health)",
-  other: "var(--color-other)",
-};
+import type { LocalExpense } from "../lib/expenseStorage";
+import { resolveCategory } from "../lib/categories";
 
 // Marks an entry that was captured automatically from a bank/UPI alert.
 function UpiTag() {
@@ -31,17 +14,23 @@ function UpiTag() {
   );
 }
 
+type CategoryMeta = { emoji: string; color: string; label: string };
+
 type Props = {
   expense: LocalExpense;
+  // Resolved category look. Optional so the card still renders standalone; falls
+  // back to the built-in/generic resolution when omitted.
+  meta?: CategoryMeta;
   onLongPress?: () => void;
 };
 
-export function ExpenseCard({ expense }: Props) {
+export function ExpenseCard({ expense, meta }: Props) {
   const isDebit = expense.direction === "debit";
   const amountColor = isDebit ? "var(--color-debit)" : "var(--color-credit)";
   const amountPrefix = isDebit ? "−" : "+";
-  const catColor = CATEGORY_COLOR[expense.category];
-  const icon = CATEGORY_ICON[expense.category];
+  const cat = meta ?? resolveCategory(expense.category, []);
+  const catColor = cat.color;
+  const icon = cat.emoji;
 
   const timeStr = new Date(expense.createdAt).toLocaleTimeString("en-IN", {
     hour: "2-digit",
@@ -69,7 +58,7 @@ export function ExpenseCard({ expense }: Props) {
             className="text-sm font-medium truncate"
             style={{ color: "var(--color-text-primary)" }}
           >
-            {expense.note || expense.category}
+            {expense.note || cat.label}
           </span>
           {expense.source === "sms" && <UpiTag />}
         </div>

@@ -43,14 +43,7 @@ export const autoLog = mutation({
     clientId: v.string(),
     amount: v.number(),
     note: v.string(),
-    category: v.union(
-      v.literal("food"),
-      v.literal("travel"),
-      v.literal("shopping"),
-      v.literal("bills"),
-      v.literal("health"),
-      v.literal("other")
-    ),
+    category: v.string(),
     direction: v.union(v.literal("debit"), v.literal("credit")),
     date: v.string(),
     party: v.optional(v.string()),
@@ -83,14 +76,7 @@ export const approve = mutation({
     queueId: v.id("smsReviewQueue"),
     amount: v.number(),
     note: v.string(),
-    category: v.union(
-      v.literal("food"),
-      v.literal("travel"),
-      v.literal("shopping"),
-      v.literal("bills"),
-      v.literal("health"),
-      v.literal("other")
-    ),
+    category: v.string(),
     direction: v.union(v.literal("debit"), v.literal("credit")),
     date: v.string(),
     party: v.optional(v.string()),

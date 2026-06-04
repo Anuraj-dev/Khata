@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
@@ -21,6 +21,16 @@ export function CreateTripDrawer({ open, onClose, onCreated }: Props) {
   const [members, setMembers] = useState<string[]>(["You"]);
   const [newMember, setNewMember] = useState("");
   const [saving, setSaving] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  // Focus the name field only once the sheet is actually open. A bare `autoFocus`
+  // attribute fires on mount even while the sheet sits closed off-screen, which
+  // pops the mobile keyboard the instant you visit the Trips tab.
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => nameRef.current?.focus(), 320);
+    return () => clearTimeout(t);
+  }, [open]);
 
   function reset() {
     setName("");
@@ -62,7 +72,7 @@ export function CreateTripDrawer({ open, onClose, onCreated }: Props) {
     <Sheet open={open} onClose={onClose} title="New trip">
       <div className="flex flex-col gap-4 px-4 pb-2">
         <input
-          autoFocus
+          ref={nameRef}
           type="text"
           placeholder="Trip name (e.g. Goa 2026)"
           value={name}

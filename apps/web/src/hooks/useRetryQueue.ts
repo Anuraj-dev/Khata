@@ -13,7 +13,7 @@ export type RetryPayload =
       clientId: string;
       amount: number;
       note: string;
-      category: "food" | "travel" | "shopping" | "bills" | "health" | "other";
+      category: string;
       direction: "debit" | "credit";
       date: string;
       party?: string;

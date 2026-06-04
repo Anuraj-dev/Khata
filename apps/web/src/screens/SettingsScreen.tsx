@@ -5,6 +5,9 @@ import { api } from "@convex/_generated/api";
 import { authClient } from "../lib/auth-client";
 import { expenseStore } from "../lib/expenseStorage";
 import { requireDeviceAuth } from "../lib/deviceAuth";
+import { useCategories } from "../hooks/useCategories";
+import { AddCategoryForm } from "../components/AddCategoryForm";
+import { BUILTIN_CATEGORIES } from "../lib/categories";
 
 type Props = {
   showToast: (t: { kind: "error" | "info"; message: string }) => void;
@@ -58,12 +61,14 @@ export function SettingsScreen({ showToast }: Props) {
   }
 
   return (
-    <div className="flex flex-col flex-1 overflow-y-auto pb-24">
+    <div className="flex flex-col flex-1 min-h-0 overflow-y-auto pb-24">
       <div className="px-4 pt-4 pb-2">
         <h2 className="text-base font-semibold" style={{ color: "var(--color-text-primary)" }}>
           Settings
         </h2>
       </div>
+
+      <CategoriesSection />
 
       {/* Danger zone */}
       <Section title="Data">
@@ -90,6 +95,72 @@ export function SettingsScreen({ showToast }: Props) {
         />
       )}
     </div>
+  );
+}
+
+function CategoriesSection() {
+  const { customDocs, addCategory, deleteCategory } = useCategories();
+  const [adding, setAdding] = useState(false);
+
+  async function handleAdd(label: string, emoji: string) {
+    await addCategory(label, emoji);
+    setAdding(false);
+  }
+
+  return (
+    <Section title="Categories">
+      <div className="flex flex-col gap-3 px-4 py-3" style={{ background: "var(--color-surface)" }}>
+        <div className="flex flex-wrap gap-2">
+          {BUILTIN_CATEGORIES.map((c) => (
+            <span
+              key={c.id}
+              className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm"
+              style={{
+                background: "var(--color-surface-elevated)",
+                border: "1px solid var(--color-border-subtle)",
+                color: "var(--color-text-secondary)",
+              }}
+            >
+              <span>{c.emoji}</span>
+              <span>{c.label}</span>
+            </span>
+          ))}
+          {customDocs.map((c) => (
+            <span
+              key={c._id}
+              className="flex items-center gap-1.5 rounded-full pl-3 pr-2 py-1.5 text-sm"
+              style={{
+                background: c.color + "22",
+                border: `1px solid ${c.color}`,
+                color: c.color,
+              }}
+            >
+              <span>{c.emoji}</span>
+              <span>{c.label}</span>
+              <button
+                onClick={() => void deleteCategory(c._id)}
+                aria-label={`Delete ${c.label}`}
+                style={{ background: "none", border: "none", color: "inherit", lineHeight: 1, opacity: 0.7 }}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+
+        {adding ? (
+          <AddCategoryForm onAdd={handleAdd} onCancel={() => setAdding(false)} />
+        ) : (
+          <button
+            onClick={() => setAdding(true)}
+            className="self-start rounded-xl px-3 py-1.5 text-sm font-semibold"
+            style={{ background: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", color: "var(--color-text-primary)" }}
+          >
+            + Add category
+          </button>
+        )}
+      </div>
+    </Section>
   );
 }
 

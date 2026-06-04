@@ -77,7 +77,7 @@ export function InsightsScreen() {
   const breakdownTotal = breakdown.reduce((s, [, v]) => s + v, 0);
 
   return (
-    <div className="flex flex-col flex-1 overflow-y-auto pb-24">
+    <div className="flex flex-col flex-1 min-h-0 overflow-y-auto pb-24">
       {/* Month switcher */}
       <div className="flex items-center justify-between px-4 pt-4 pb-3">
         <button
