@@ -32,4 +32,5 @@
 ## Release and versioning
 
 - Release automation is managed by `release-please` via `.github/workflows/release-please.yml`.
-- Version source: `apps/mobile/package.json` (release-please also updates `apps/mobile/app.json > $.expo.version`). Update this to `apps/web/package.json` when web is the primary release target.
+- Version source: `apps/web/package.json` (the web PWA is the primary release target). Tags are `vX.Y.Z`. The abandoned `apps/mobile` is no longer tracked.
+- The workflow needs the repo setting **Settings → Actions → General → Workflow permissions → "Allow GitHub Actions to create and approve pull requests"** enabled, or release-please can't open its release PR.
