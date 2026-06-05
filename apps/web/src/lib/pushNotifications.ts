@@ -10,29 +10,36 @@ export async function initPushNotifications(
 ): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
 
-  const perm = await PushNotifications.requestPermissions();
-  if (perm.receive !== "granted") return;
+  try {
+    // Register listeners before calling register() so the registration token
+    // event (which fires immediately on some devices) is never missed.
+    await PushNotifications.addListener("registration", (token) => {
+      register({ fcmToken: token.value, platform: Capacitor.getPlatform() }).catch(
+        (e) => console.error("Push token registration failed:", e)
+      );
+    });
 
-  await PushNotifications.register();
+    await PushNotifications.addListener("registrationError", (err) => {
+      console.error("Push registration error:", err.error);
+    });
 
-  PushNotifications.addListener("registration", (token) => {
-    register({ fcmToken: token.value, platform: Capacitor.getPlatform() }).catch(
-      (e) => console.error("Push token registration failed:", e)
-    );
-  });
+    await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
+      const data: Record<string, string> = action.notification.data ?? {};
+      if (data.type === "trip_expense" && data.tripId) {
+        navigate(`/trips/${data.tripId}`);
+      } else if (data.type === "sms_review") {
+        navigate("/");
+      } else if (data.type === "settlement") {
+        navigate("/trips");
+      }
+    });
 
-  PushNotifications.addListener("registrationError", (err) => {
-    console.error("Push registration error:", err.error);
-  });
+    const perm = await PushNotifications.requestPermissions();
+    if (perm.receive !== "granted") return;
 
-  PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
-    const data: Record<string, string> = action.notification.data ?? {};
-    if (data.type === "trip_expense" && data.tripId) {
-      navigate(`/trips/${data.tripId}`);
-    } else if (data.type === "sms_review") {
-      navigate("/");
-    } else if (data.type === "settlement") {
-      navigate("/trips");
-    }
-  });
+    await PushNotifications.register();
+  } catch (e) {
+    // Never let a push-setup failure bubble up — it must not break app startup.
+    console.error("Push notification init failed:", e);
+  }
 }

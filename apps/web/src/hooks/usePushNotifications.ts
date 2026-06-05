@@ -11,7 +11,9 @@ export function usePushNotifications() {
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
-    initPushNotifications(registerToken, navigate);
+    initPushNotifications(registerToken, navigate).catch((e) =>
+      console.error("Push notification init failed:", e)
+    );
     // Listeners are set once on mount and cleaned up when the component unmounts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
