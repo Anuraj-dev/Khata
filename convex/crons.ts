@@ -10,4 +10,12 @@ crons.interval(
   {}
 );
 
+// 9:00 AM IST = 3:30 AM UTC
+crons.daily(
+  "settlement reminders",
+  { hourUTC: 3, minuteUTC: 30 },
+  internal.pushNotifications.sendSettlementReminders,
+  {}
+);
+
 export default crons;

@@ -1,5 +1,6 @@
-import { mutation, query } from "./_generated/server";
+import { internalQuery, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { requireTokenIdentifier } from "./authHelpers";
 import { resolveTripAccess } from "./tripAccess";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -268,11 +269,19 @@ export const addTripExpense = mutation({
     const owner = await requireTokenIdentifier(ctx);
     const trip = await ctx.db.get(args.tripId);
     if (!trip || trip.ownerTokenIdentifier !== owner) throw new Error("Not found");
-    return ctx.db.insert("tripExpenses", {
+    const expenseId = await ctx.db.insert("tripExpenses", {
       ...args,
       ownerTokenIdentifier: owner,
       createdAt: Date.now(),
     });
+    await ctx.scheduler.runAfter(0, internal.pushNotifications.notifyTripViewers, {
+      tripId: args.tripId,
+      ownerTokenIdentifier: owner,
+      expenseNote: args.note,
+      expenseAmount: args.amount,
+      tripName: trip.name,
+    });
+    return expenseId;
   },
 });
 
@@ -359,5 +368,49 @@ export const clearAll = mutation({
     }
 
     return { deleted: trips.length };
+  },
+});
+
+// Used by the settlement-reminder cron to compute outstanding balances for a
+// given user without going through ctx.auth (which isn't available in actions).
+export const getTripBalancesForOwner = internalQuery({
+  args: { owner: v.string() },
+  handler: async (ctx, { owner }) => {
+    type Row = { tripId: Id<"trips">; name: string; net: number };
+    const out: Row[] = [];
+
+    async function balanceFor(trip: Doc<"trips">, member: string) {
+      const expenses = await ctx.db
+        .query("tripExpenses")
+        .withIndex("by_owner_trip", (q) =>
+          q.eq("ownerTokenIdentifier", trip.ownerTokenIdentifier).eq("tripId", trip._id)
+        )
+        .collect();
+      const payments = await ctx.db
+        .query("settlements")
+        .withIndex("by_owner_trip", (q) =>
+          q.eq("ownerTokenIdentifier", trip.ownerTokenIdentifier).eq("tripId", trip._id)
+        )
+        .collect();
+      out.push({ tripId: trip._id, name: trip.name, net: netForMember(member, trip.members, expenses, payments) });
+    }
+
+    const owned = await ctx.db
+      .query("trips")
+      .withIndex("by_owner_status", (q) => q.eq("ownerTokenIdentifier", owner).eq("status", "active"))
+      .collect();
+    for (const trip of owned) await balanceFor(trip, SELF);
+
+    const links = await ctx.db
+      .query("tripMemberLinks")
+      .withIndex("by_viewer", (q) => q.eq("viewerTokenIdentifier", owner))
+      .collect();
+    for (const link of links) {
+      const trip = await ctx.db.get(link.tripId);
+      if (!trip || trip.status !== "active") continue;
+      await balanceFor(trip, link.member);
+    }
+
+    return out;
   },
 });

@@ -23,6 +23,7 @@ import { useExpenseMutations } from "./hooks/useExpenseMutations";
 import { useRetryQueue } from "./hooks/useRetryQueue";
 import { useSmsPoller } from "./hooks/useSmsPoller";
 import { useDeepLinkAuth } from "./hooks/useDeepLinkAuth";
+import { usePushNotifications } from "./hooks/usePushNotifications";
 import type { RetryPayload } from "./hooks/useRetryQueue";
 import { useLocation, useNavigate } from "react-router";
 
@@ -50,6 +51,7 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
 
   const { addExpense } = useExpenseMutations({ showToast, enqueueRetry });
   useSmsPoller();
+  usePushNotifications();
 
   // Resume a trip invite that was opened before sign-in (the token was stashed
   // pre-auth so it survives the OAuth round-trip).

@@ -15,3 +15,5 @@ ios/
 bun.lock
 project_files/
 .agent/
+future-plans.md
+apps/web/android/app/google-services.json
