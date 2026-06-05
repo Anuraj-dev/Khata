@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.1](https://github.com/Anuraj-dev/Khata/compare/v0.9.0...v0.9.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* **notifications:** commit google-services.json so Firebase config is baked into builds ([3d1aa7c](https://github.com/Anuraj-dev/Khata/commit/3d1aa7c7780012bc8aa53eecd7c1b23531ded7cc))
+* **notifications:** commit google-services.json so Firebase config is baked into builds ([aab502c](https://github.com/Anuraj-dev/Khata/commit/aab502cdc3f2259fd77eac65b80ff38258c8c374))
+* **security:** stop tracking google-services.json, inject in CI ([dbfece7](https://github.com/Anuraj-dev/Khata/commit/dbfece768ce3aa3776ec1e0ee257545c4d30dfdf))
+* **security:** stop tracking google-services.json, inject it in CI ([9afc93c](https://github.com/Anuraj-dev/Khata/commit/9afc93c5a200fefd033b3c60936e0517d71ffb38))
+
 ## [0.9.0](https://github.com/Anuraj-dev/Khata/compare/v0.8.2...v0.9.0) (2026-06-05)
 
 
