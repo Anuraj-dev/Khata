@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.2](https://github.com/Anuraj-dev/Khata/compare/v0.8.1...v0.8.2) (2026-06-05)
+
+
+### Bug Fixes
+
+* replace placeholder Capacitor icons with Khata rupee logo ([c80e87a](https://github.com/Anuraj-dev/Khata/commit/c80e87a09db3a35a0616a07beddb6ae4b197aff8))
+
 ## [0.8.1](https://github.com/Anuraj-dev/Khata/compare/v0.8.0...v0.8.1) (2026-06-05)
 
 
