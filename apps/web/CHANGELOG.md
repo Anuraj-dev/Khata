@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/Anuraj-dev/Khata/compare/v0.8.0...v0.8.1) (2026-06-05)
+
+
+### Bug Fixes
+
+* replace flashing toggle buttons with sliding pill in AddExpenseDrawer ([b080020](https://github.com/Anuraj-dev/Khata/commit/b080020e5a683ded604f1cdfd9af36b5a89c57b3))
+
 ## [0.8.0](https://github.com/Anuraj-dev/Khata/compare/v0.7.0...v0.8.0) (2026-06-05)
 
 
