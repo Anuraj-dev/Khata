@@ -16,3 +16,5 @@ bun.lock
 project_files/
 .agent/
 future-plans.md
+# Contains the Firebase Android API key — injected in CI from a secret, never committed.
+apps/web/android/app/google-services.json
