@@ -8,6 +8,8 @@ import { requireDeviceAuth } from "../lib/deviceAuth";
 import { useCategories } from "../hooks/useCategories";
 import { AddCategoryForm } from "../components/AddCategoryForm";
 import { BUILTIN_CATEGORIES } from "../lib/categories";
+import { Button } from "../components/Button";
+import { PlusIcon } from "../components/icons";
 
 type Props = {
   showToast: (t: { kind: "error" | "info"; message: string }) => void;
@@ -201,13 +203,15 @@ function CategoriesSection() {
         {adding ? (
           <AddCategoryForm onAdd={handleAdd} onCancel={() => setAdding(false)} />
         ) : (
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
+            className="self-start"
+            leftIcon={<PlusIcon size={15} />}
             onClick={() => setAdding(true)}
-            className="self-start rounded-xl px-3 py-1.5 text-sm font-semibold"
-            style={{ background: "var(--color-surface-elevated)", border: "1px solid var(--color-border-default)", color: "var(--color-text-primary)" }}
           >
-            + Add category
-          </button>
+            Add category
+          </Button>
         )}
       </div>
     </Section>
@@ -216,14 +220,23 @@ function CategoriesSection() {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="mt-4">
+    <div className="mt-5">
       <p
-        className="px-4 pb-1 text-xs font-semibold uppercase tracking-wider"
+        className="px-4 pb-1.5 text-xs font-semibold uppercase tracking-wider"
         style={{ color: "var(--color-text-muted)" }}
       >
         {title}
       </p>
-      <div style={{ borderTop: "1px solid var(--color-border-subtle)" }}>{children}</div>
+      <div
+        className="mx-4 overflow-hidden [&>*:last-child]:border-b-0"
+        style={{
+          border: "1px solid var(--color-border-subtle)",
+          borderRadius: "var(--radius-lg)",
+          boxShadow: "var(--shadow-card)",
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -245,8 +258,8 @@ function Row({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="flex w-full flex-col items-start gap-0.5 px-4 py-3 text-left active:opacity-60 transition-opacity disabled:opacity-50"
-      style={{ background: "var(--color-surface)", borderBottom: "1px solid var(--color-border-subtle)" }}
+      className="flex w-full flex-col items-start gap-0.5 px-4 py-3 text-left transition-colors active:[background:var(--color-surface-elevated)] disabled:opacity-50"
+      style={{ background: "var(--color-surface)", borderBottom: "1px solid var(--color-border-subtle)", transitionDuration: "var(--dur-fast)", cursor: "pointer" }}
     >
       <span
         className="text-sm font-medium"
@@ -282,8 +295,13 @@ function TypedConfirm({
   return (
     <div className="fixed inset-0 z-50 flex items-end" style={{ background: "rgba(0,0,0,0.6)" }}>
       <div
-        className="w-full rounded-t-2xl p-5 flex flex-col gap-3"
-        style={{ background: "var(--color-surface-elevated)" }}
+        className="w-full p-5 flex flex-col gap-3"
+        style={{
+          background: "var(--color-surface-elevated)",
+          borderRadius: "var(--radius-xl) var(--radius-xl) 0 0",
+          boxShadow: "var(--shadow-elevated)",
+          paddingBottom: "max(1.25rem, env(safe-area-inset-bottom, 0px) + 1rem)",
+        }}
       >
         <h3 className="text-base font-semibold" style={{ color: "var(--color-text-primary)" }}>
           {title}
@@ -296,29 +314,27 @@ function TypedConfirm({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="DELETE"
-          className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
+          className="w-full px-3 py-2.5 text-sm outline-none"
           style={{
             background: "var(--color-surface)",
             color: "var(--color-text-primary)",
             border: "1px solid var(--color-border-default)",
+            borderRadius: "var(--radius-md)",
           }}
         />
         <div className="flex gap-2 mt-1">
-          <button
-            onClick={onCancel}
-            className="flex-1 rounded-xl py-2.5 text-sm font-medium"
-            style={{ background: "var(--color-surface)", color: "var(--color-text-primary)" }}
-          >
+          <Button variant="secondary" fullWidth onClick={onCancel}>
             Cancel
-          </button>
-          <button
-            onClick={onConfirm}
+          </Button>
+          <Button
+            fullWidth
+            loading={busy}
             disabled={!armed || busy}
-            className="flex-1 rounded-xl py-2.5 text-sm font-semibold disabled:opacity-40"
-            style={{ background: "var(--color-error)", color: "#fff" }}
+            onClick={onConfirm}
+            style={{ background: "var(--color-error)", color: "#fff", boxShadow: "none" }}
           >
             {busy ? "Erasing…" : "Erase all"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

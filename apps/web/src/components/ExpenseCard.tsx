@@ -40,13 +40,16 @@ export function ExpenseCard({ expense, meta }: Props) {
 
   return (
     <div
-      className="flex items-center gap-3 px-4 py-3 active:opacity-70 transition-opacity"
-      style={{ borderBottom: "1px solid var(--color-border-subtle)" }}
+      className="flex items-center gap-3 px-4 py-3 transition-colors active:[background:var(--color-surface-elevated)]"
+      style={{
+        borderBottom: "1px solid var(--color-border-subtle)",
+        transitionDuration: "var(--dur-fast)",
+      }}
     >
       {/* Category dot */}
       <div
         className="flex items-center justify-center w-10 h-10 rounded-full shrink-0 text-lg"
-        style={{ background: catColor + "22", color: catColor }}
+        style={{ background: catColor + "22", color: catColor, boxShadow: `inset 0 0 0 1px ${catColor}33` }}
       >
         {icon}
       </div>

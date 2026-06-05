@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { clearPendingJoin } from "../lib/joinLink";
+import { Button } from "../components/Button";
+import { LuggageIcon, LinkOffIcon } from "../components/icons";
 
 export function JoinTripScreen() {
   const { token } = useParams();
@@ -61,11 +63,13 @@ export function JoinTripScreen() {
       : "This invite link is invalid or was revoked.";
     return (
       <Wrap>
-        <span style={{ fontSize: 40, opacity: 0.5 }}>🔗</span>
+        <span className="flex h-16 w-16 items-center justify-center" style={{ borderRadius: "var(--radius-xl)", background: "var(--color-surface-elevated)", color: "var(--color-text-muted)" }}>
+          <LinkOffIcon size={28} strokeWidth={2} />
+        </span>
         <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>{msg}</p>
-        <button onClick={() => navigate("/")} className="text-sm font-semibold" style={{ color: "var(--color-accent)", background: "none", border: "none" }}>
+        <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
           Go home
-        </button>
+        </Button>
       </Wrap>
     );
   }
@@ -73,13 +77,15 @@ export function JoinTripScreen() {
   if (preview.isOwner) {
     return (
       <Wrap>
-        <span style={{ fontSize: 40 }}>🧳</span>
+        <span className="flex h-16 w-16 items-center justify-center" style={{ borderRadius: "var(--radius-xl)", background: "var(--color-accent-bg)", color: "var(--color-accent)" }}>
+          <LuggageIcon size={30} />
+        </span>
         <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
           This is your trip — <span style={{ color: "var(--color-text-primary)", fontWeight: 600 }}>{preview.tripName}</span>.
         </p>
-        <button onClick={() => navigate(`/trips/${preview.tripId}`, { replace: true })} className="rounded-xl px-4 py-2 text-sm font-semibold" style={{ background: "var(--color-accent)", color: "var(--color-bg)" }}>
+        <Button onClick={() => navigate(`/trips/${preview.tripId}`, { replace: true })}>
           Open trip
-        </button>
+        </Button>
       </Wrap>
     );
   }
@@ -91,7 +97,9 @@ export function JoinTripScreen() {
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-y-auto px-6 pt-10 pb-8">
       <div className="flex flex-col items-center gap-1.5 pb-6 text-center">
-        <span style={{ fontSize: 40 }}>🧳</span>
+        <span className="mb-1.5 flex h-16 w-16 items-center justify-center" style={{ borderRadius: "var(--radius-xl)", background: "var(--color-accent-bg)", color: "var(--color-accent)" }}>
+          <LuggageIcon size={30} />
+        </span>
         <h2 className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>
           Join “{preview.tripName}”
         </h2>
@@ -112,11 +120,14 @@ export function JoinTripScreen() {
               <button
                 key={m}
                 onClick={() => setMember(m)}
-                className="flex items-center justify-between rounded-xl px-4 py-3 text-left transition-colors"
+                className="flex min-h-[48px] items-center justify-between px-4 py-3 text-left transition-colors"
                 style={{
                   background: active ? "var(--color-accent-subtle)" : "var(--color-surface)",
                   border: `1px solid ${active ? "var(--color-accent)" : "var(--color-border-subtle)"}`,
                   color: active ? "var(--color-accent)" : "var(--color-text-primary)",
+                  borderRadius: "var(--radius-md)",
+                  cursor: "pointer",
+                  transitionDuration: "var(--dur-fast)",
                 }}
               >
                 <span className="text-sm font-medium">{m}</span>
@@ -132,19 +143,17 @@ export function JoinTripScreen() {
       )}
 
       {claimable.length > 0 && (
-        <button
-          onClick={() => void join()}
+        <Button
+          variant={member ? "primary" : "secondary"}
+          fullWidth
+          loading={joining}
           disabled={!member || joining}
-          className="mt-6 w-full rounded-xl text-base font-bold transition-opacity"
-          style={{
-            height: 52,
-            background: member ? "var(--color-accent)" : "var(--color-surface)",
-            color: member ? "var(--color-bg)" : "var(--color-text-muted)",
-            opacity: joining ? 0.6 : 1,
-          }}
+          onClick={() => void join()}
+          className="mt-6"
+          style={{ minHeight: 52 }}
         >
           {joining ? "Joining…" : member ? `Join as ${member} — read only` : "Pick your name"}
-        </button>
+        </Button>
       )}
     </div>
   );
