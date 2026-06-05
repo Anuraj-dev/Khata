@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.0](https://github.com/Anuraj-dev/Khata/compare/v0.7.0...v0.8.0) (2026-06-05)
+
+
+### Features
+
+* **ui:** marketing landing page, app icon, and app-wide restyle ([7b14ef2](https://github.com/Anuraj-dev/Khata/commit/7b14ef28f55c523534a5c45e83c85215a4da5c8e))
+* **ui:** marketing landing page, app icon, and app-wide restyle ([c060fb7](https://github.com/Anuraj-dev/Khata/commit/c060fb768365b2e97fb4e62a3c53594a266bb001))
+* **ui:** marketing landing page, app icon, and app-wide restyle ([239ff22](https://github.com/Anuraj-dev/Khata/commit/239ff220f903420266dfdf3c22198090c19f22ab))
+
 ## [0.7.0](https://github.com/Anuraj-dev/Khata/compare/v0.6.0...v0.7.0) (2026-06-04)
 
 
