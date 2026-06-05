@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.9.0](https://github.com/Anuraj-dev/Khata/compare/v0.8.2...v0.9.0) (2026-06-05)
+
+
+### Features
+
+* **notifications:** add FCM push notifications for trips, SMS review, and settlements ([0c06ea9](https://github.com/Anuraj-dev/Khata/commit/0c06ea9e1d335df5519bfc4664295293bbb83d12))
+* **notifications:** add FCM push notifications for trips, SMS review, and settlements ([0480926](https://github.com/Anuraj-dev/Khata/commit/0480926bf7e989e6a3264aa9be179d9a5851de49))
+
+
+### Bug Fixes
+
+* **notifications:** prevent crash on granting notification permission ([1c8e276](https://github.com/Anuraj-dev/Khata/commit/1c8e276d2040c02860c022908dcbcf3fae34fcc8))
+* **notifications:** prevent crash on granting notification permission ([c182c0b](https://github.com/Anuraj-dev/Khata/commit/c182c0bf150ae98f23b7340a784edcdb4f702656))
+
 ## [0.8.2](https://github.com/Anuraj-dev/Khata/compare/v0.8.1...v0.8.2) (2026-06-05)
 
 
