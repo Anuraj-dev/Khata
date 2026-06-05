@@ -121,6 +121,15 @@ export default defineSchema({
     .index("by_trip_viewer", ["tripId", "viewerTokenIdentifier"])
     .index("by_trip_member", ["tripId", "member"]),
 
+  pushTokens: defineTable({
+    ownerTokenIdentifier: v.string(),
+    fcmToken: v.string(),
+    platform: v.string(),
+    updatedAt: v.number(),
+  })
+    .index("by_owner", ["ownerTokenIdentifier"])
+    .index("by_fcm_token", ["fcmToken"]),
+
   smsReviewQueue: defineTable({
     rawSms: v.string(),
     parsedAmount: v.optional(v.number()),

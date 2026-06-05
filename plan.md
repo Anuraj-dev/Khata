@@ -10,7 +10,7 @@
 | M1-Web | PWA Foundation | 🔨 In Progress |
 | M2 | Personal Expense Core (Expo — abandoned) | ✅ Done |
 | M2-Web | Personal Expense Core (PWA) | ✅ Done |
-| M3 | UPI SMS via Capacitor wrapper | 🔨 In Progress |
+| M3 | UPI SMS via Capacitor wrapper | ✅ Done |
 | M4 | Group Trip Splitter | ⏳ Pending |
 | M5 | Insights & Polish | ⏳ Pending |
 
@@ -113,7 +113,7 @@
 - [x] `SmsPlugin.java` — ContentResolver queries `content://sms/inbox`, returns sender/body/timestamp; permission handled via `@CapacitorPlugin` annotation
 - [x] `MainActivity.java` — registers `SmsPlugin` in `onCreate`
 - [x] `.github/workflows/build-apk.yml` — CI builds debug APK on every push to main, uploads as artifact (no Android Studio needed)
-- [ ] End-to-end test on device: new UPI SMS → appears in queue → approve → shows in expense list
+- [x] End-to-end test on device: new UPI SMS → appears in queue → approve → shows in expense list
 
 ### M3.1: In-app OAuth + SMS auto-logging
 
@@ -147,7 +147,8 @@
 - [x] Month dividers in the expense list so multi-month history stays scannable
 - [x] `convex/expenses.ts` — `listRange(start, end)` query for month aggregation
 - [x] `InsightsScreen` — month switcher, per-month spend/received totals, category breakdown bars, 6-month trend
-- [ ] Push notifications, deeper charts (follow-up)
+- [ ] Push notifications (see M5.3 below)
+- [ ] Deeper charts (follow-up)
 
 ### M5.1: Custom categories + UX fixes
 
@@ -160,7 +161,7 @@
 - [x] `ExpenseCard` resolves category id → emoji/color/label via `meta` prop
 - [x] **Fix: Trips tab popped the keyboard** — `CreateTripDrawer` name input used a bare `autoFocus` that fired while the sheet sat closed off-screen; now focuses only on open
 - [x] **Fix: expense list unscrollable** — added missing `min-h-0` down the flex chain (`main` → screen → list) so the scroll container shrinks to the viewport; momentum scroll + overscroll-contain + sticky day headers. Applied `min-h-0` to Trips/Settings/Insights too.
-- [ ] Trip sharing (read-only, 1-week QR link) — design agreed, not yet built (see below)
+- [x] Trip sharing (read-only, 1-week QR link) — built and tested as M6/M6.1
 
 ### M5.2: Net balance + derived trips summary on home ✅
 
@@ -175,7 +176,7 @@
 
 **Files:** `convex/trips.ts` (`myTripBalances` + `netForMember`), `apps/web/src/components/TripsSummary.tsx`, `apps/web/src/screens/ExpensesScreen.tsx`.
 
-### M6: Read-only trip sharing 🔨
+### M6: Read-only trip sharing ✅
 
 **Agreed model:**
 - Member slots stay free-text for non-Khata people; a slot can be linked to a Khata user.
@@ -188,23 +189,46 @@
 **Micro-steps:**
 
 *Backend*
-- [ ] Schema: `tripShares` (tripId, token, ownerToken, expiresAt) + `tripMemberLinks` (tripId, member, viewerToken, ownerToken) with `by_token`/`by_viewer`/`by_trip_viewer`/`by_trip_member` indexes.
-- [ ] `tripAccess.ts` — `resolveTripAccess(ctx, tripId, caller)` → `{trip, role: owner|viewer, viewerMember}` or null (owner = "You"; viewer via link).
-- [ ] `tripShares.ts` — `getOrCreateShare({tripId, regenerate?})` (owner; reuse unexpired, else mint, 7-day expiry); `previewShare({token})` (any auth; trip name + members + already-claimed slots, expiry check); `redeemShare({token, member})` (validate token/expiry, member ∈ trip & ≠ "You", slot not taken, upsert link).
-- [ ] `trips.ts` — `getTrip`/`listTripExpenses` use `resolveTripAccess` and read the **owner's** rows; `getTrip` returns `role`/`viewerMember`. `listTrips` + `myTripBalances` also include trips shared *to* you (viewer net for their slot).
-- [ ] `settlements.ts` — `listByTrip` allows viewer read via `resolveTripAccess`.
+- [x] Schema: `tripShares` (tripId, token, ownerToken, expiresAt) + `tripMemberLinks` (tripId, member, viewerToken, ownerToken) with `by_token`/`by_viewer`/`by_trip_viewer`/`by_trip_member` indexes.
+- [x] `tripAccess.ts` — `resolveTripAccess(ctx, tripId, caller)` → `{trip, role: owner|viewer, viewerMember}` or null (owner = "You"; viewer via link).
+- [x] `tripShares.ts` — `getOrCreateShare({tripId, regenerate?})` (owner; reuse unexpired, else mint, 7-day expiry); `previewShare({token})` (any auth; trip name + members + already-claimed slots, expiry check); `redeemShare({token, member})` (validate token/expiry, member ∈ trip & ≠ "You", slot not taken, upsert link).
+- [x] `trips.ts` — `getTrip`/`listTripExpenses` use `resolveTripAccess` and read the **owner's** rows; `getTrip` returns `role`/`viewerMember`. `listTrips` + `myTripBalances` also include trips shared *to* you (viewer net for their slot).
+- [x] `settlements.ts` — `listByTrip` allows viewer read via `resolveTripAccess`.
 
 *Frontend*
-- [ ] `components/ShareTripSheet.tsx` — owner: QR (`qrcode.react`) + link + copy + expiry + regenerate.
-- [ ] `screens/JoinTripScreen.tsx` — preview → pick member radio → redeem → go to trip; handles invalid/expired.
-- [ ] `App.tsx` — `/join/:token` route; capture token to localStorage pre-auth + resume after sign-in.
-- [ ] `TripDetailScreen` — viewer = read-only (hide add/edit/mark-paid/settle, show "Shared · read-only" banner); owner gets a Share button.
-- [ ] `TripsScreen` — show shared-to-me trips with a "Shared" badge.
-- [ ] `.env.example` — add `VITE_APP_URL` (deployed web origin used to build invite links; falls back to `window.location.origin`).
+- [x] `components/ShareTripSheet.tsx` — owner: QR (`qrcode.react`) + link + copy + expiry + regenerate.
+- [x] `screens/JoinTripScreen.tsx` — preview → pick member radio → redeem → go to trip; handles invalid/expired.
+- [x] `App.tsx` — `/join/:token` route; capture token to localStorage pre-auth + resume after sign-in.
+- [x] `TripDetailScreen` — viewer = read-only (hide add/edit/mark-paid/settle, show "Shared · read-only" banner); owner gets a Share button.
+- [x] `TripsScreen` — show shared-to-me trips with a "Shared" badge.
+- [x] `.env.example` — add `VITE_APP_URL` (deployed web origin used to build invite links; falls back to `window.location.origin`).
 
 **Files:** `convex/schema.ts`, `convex/tripAccess.ts`, `convex/tripShares.ts`, `convex/trips.ts`, `convex/settlements.ts`, `apps/web/src/components/ShareTripSheet.tsx`, `apps/web/src/screens/JoinTripScreen.tsx`, `apps/web/src/screens/TripDetailScreen.tsx`, `apps/web/src/screens/TripsScreen.tsx`, `apps/web/src/App.tsx`, `apps/web/.env.example`.
 
-### M6.1: Post-launch fixes + member management 🔨
+### M5.3: Push notifications ✅
+
+**Three notification types:**
+1. **Trip expense added** — viewer is notified when the owner logs a new expense on a shared trip. Deep-links to `/trips/:tripId`.
+2. **SMS review queue** — user is notified when a bank SMS lands that needs manual review. Deep-links to `/` (Expenses screen with the review banner).
+3. **Settlement reminder** — daily cron at 9 AM IST notifies each user of outstanding trip balances (you're owed / you owe). Deep-links to `/trips`.
+
+**Stack:** `@capacitor/push-notifications` (Android FCM), `jose` (RS256 JWT for FCM HTTP v1 OAuth), Convex `ctx.scheduler.runAfter` for event-driven notifications, `crons.daily` for settlement reminders.
+
+**Setup required (one-time):**
+1. Create a Firebase project → enable Cloud Messaging → download `google-services.json` → place at `apps/web/android/app/google-services.json`
+2. Generate a Firebase service account JSON → paste as `FIREBASE_SERVICE_ACCOUNT` in the Convex dashboard env vars
+
+- [x] `convex/schema.ts` — `pushTokens` table (ownerTokenIdentifier, fcmToken, platform)
+- [x] `convex/pushTokens.ts` — `registerToken` mutation (upsert by FCM token, clean up token reuse across accounts)
+- [x] `convex/pushNotifications.ts` — FCM HTTP v1 action (jose RS256 JWT auth), `sendToUser`, `notifyTripViewers`, `sendSettlementReminders` internal actions + supporting internalQueries
+- [x] `convex/trips.ts` — `addTripExpense` schedules `notifyTripViewers`; `getTripBalancesForOwner` internalQuery for cron
+- [x] `convex/smsQueue.ts` — `enqueue` schedules `sendToUser` for review notification
+- [x] `convex/crons.ts` — daily 3:30 AM UTC settlement reminder cron
+- [x] `apps/web/src/lib/pushNotifications.ts` — request permission, register FCM token, handle notification tap → navigate
+- [x] `apps/web/src/hooks/usePushNotifications.ts` — React hook, init on mount (native only)
+- [x] `apps/web/src/App.tsx` — `usePushNotifications()` called in AppShell
+
+### M6.1: Post-launch fixes + member management ✅
 
 Real-device testing of M6 surfaced two issues plus a missing capability:
 

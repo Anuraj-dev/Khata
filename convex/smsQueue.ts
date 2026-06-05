@@ -1,5 +1,6 @@
 import { internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { requireTokenIdentifier } from "./authHelpers";
 
 export const listPending = query({
@@ -27,12 +28,22 @@ export const enqueue = mutation({
   },
   handler: async (ctx, args) => {
     const owner = await requireTokenIdentifier(ctx);
-    return ctx.db.insert("smsReviewQueue", {
+    const id = await ctx.db.insert("smsReviewQueue", {
       ...args,
       status: "pending",
       ownerTokenIdentifier: owner,
       createdAt: Date.now(),
     });
+    const rupeesStr = args.parsedAmount
+      ? `₹${args.parsedAmount % 100 === 0 ? args.parsedAmount / 100 : (args.parsedAmount / 100).toFixed(2)} · `
+      : "";
+    await ctx.scheduler.runAfter(0, internal.pushNotifications.sendToUser, {
+      ownerTokenIdentifier: owner,
+      title: "Transaction needs review",
+      body: `${rupeesStr}tap to review`,
+      data: { type: "sms_review" },
+    });
+    return id;
   },
 });
 
