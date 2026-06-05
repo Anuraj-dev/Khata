@@ -90,25 +90,48 @@ export function AddExpenseDrawer({ open, onClose, onSave }: Props) {
         />
 
         {/* Direction toggle */}
-        <div className="flex gap-2 px-4">
-          {(["debit", "credit"] as const).map((dir) => {
-            const active = direction === dir;
-            const color = dir === "debit" ? "var(--color-debit)" : "var(--color-credit)";
-            return (
-              <button
-                key={dir}
-                onClick={() => setDirection(dir)}
-                className="flex-1 h-10 rounded-xl text-sm font-semibold transition-colors"
-                style={{
-                  background: active ? color + "18" : "var(--color-surface)",
-                  border: `1px solid ${active ? color + "66" : "var(--color-border-subtle)"}`,
-                  color: active ? color : "var(--color-text-secondary)",
-                }}
-              >
-                {dir === "debit" ? "Spent" : "Received"}
-              </button>
-            );
-          })}
+        <div className="px-4">
+          <div
+            className="relative flex h-11 rounded-xl overflow-hidden"
+            style={{
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border-subtle)",
+            }}
+          >
+            {/* Sliding pill — moves instead of each button fading in/out */}
+            <div
+              className="absolute inset-0 w-1/2 pointer-events-none"
+              style={{
+                transform: direction === "debit" ? "translateX(0%)" : "translateX(100%)",
+                transition: "transform 200ms cubic-bezier(0.4, 0, 0.2, 1), background-color 150ms ease",
+                background: direction === "debit"
+                  ? "var(--color-debit)" + "20"
+                  : "var(--color-credit)" + "20",
+                boxShadow: direction === "debit"
+                  ? `inset 0 0 0 1px ${"var(--color-debit)"}55`
+                  : `inset 0 0 0 1px ${"var(--color-credit)"}55`,
+              }}
+            />
+            {(["debit", "credit"] as const).map((dir) => {
+              const active = direction === dir;
+              const color = dir === "debit" ? "var(--color-debit)" : "var(--color-credit)";
+              return (
+                <button
+                  key={dir}
+                  onClick={() => setDirection(dir)}
+                  className="relative flex-1 h-full text-sm font-semibold z-10"
+                  style={{
+                    color: active ? color : "var(--color-text-secondary)",
+                    transition: "color 150ms ease",
+                    background: "transparent",
+                    border: "none",
+                  }}
+                >
+                  {dir === "debit" ? "Spent" : "Received"}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Amount keypad */}
