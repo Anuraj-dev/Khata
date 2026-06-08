@@ -149,7 +149,11 @@ export function ExpensesScreen({ isAuthenticated, onAddPress }: Props) {
               {isNewMonth && (
                 <MonthDivider isoDate={section.date} {...monthTotals(sections, month)} />
               )}
-              <DaySectionHeader label={section.label} />
+              <DaySectionHeader
+                label={section.label}
+                net={section.totalCredit - section.totalDebit}
+                showNet={section.label !== "Today"}
+              />
               {section.data.map((expense) => (
                 <ExpenseCard key={expense.id} expense={expense} meta={resolve(expense.category)} />
               ))}

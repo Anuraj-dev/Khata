@@ -49,7 +49,15 @@ export const getTrip = query({
     const caller = await requireTokenIdentifier(ctx);
     const access = await resolveTripAccess(ctx, tripId, caller);
     if (!access) return null;
-    return { ...access.trip, role: access.role, viewerMember: access.viewerMember };
+    // The owner's member slot is literally named "You". A viewer needs the
+    // owner's real (Google) name to relabel that slot, so look it up here.
+    const ownerUser = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", access.trip.ownerTokenIdentifier))
+      .unique();
+    const ownerName =
+      ownerUser?.name || ownerUser?.email?.split("@")[0] || "Trip owner";
+    return { ...access.trip, role: access.role, viewerMember: access.viewerMember, ownerName };
   },
 });
 
@@ -366,6 +374,15 @@ export const clearAll = mutation({
 
       await ctx.db.delete(trip._id);
     }
+
+    // Also drop any trips shared *to* this caller (they own no trips, so the loop
+    // above never touches these). Without this, a viewer clearing their account
+    // would keep seeing trips shared with them.
+    const myLinks = await ctx.db
+      .query("tripMemberLinks")
+      .withIndex("by_viewer", (q) => q.eq("viewerTokenIdentifier", owner))
+      .collect();
+    for (const l of myLinks) await ctx.db.delete(l._id);
 
     return { deleted: trips.length };
   },

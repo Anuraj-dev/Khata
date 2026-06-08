@@ -1,6 +1,7 @@
 package in.khata.app;
 
 import android.Manifest;
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
 
@@ -16,10 +17,19 @@ import com.getcapacitor.annotation.PermissionCallback;
 @CapacitorPlugin(
     name = "SmsReader",
     permissions = {
-        @Permission(strings = { Manifest.permission.READ_SMS }, alias = "readSms")
+        @Permission(
+            strings = { Manifest.permission.READ_SMS, Manifest.permission.RECEIVE_SMS },
+            alias = "readSms"
+        )
     }
 )
 public class SmsPlugin extends Plugin {
+
+    // Shared with SmsReceiver — the background receiver reads the device secret +
+    // ingest URL from here to post incoming SMS while the app is closed.
+    static final String INGEST_PREFS = "khata_sms_ingest";
+    static final String KEY_SECRET = "device_secret";
+    static final String KEY_URL = "ingest_url";
 
     @PluginMethod
     public void requestPermission(PluginCall call) {
@@ -38,6 +48,22 @@ public class SmsPlugin extends Plugin {
         JSObject result = new JSObject();
         result.put("granted", granted);
         call.resolve(result);
+    }
+
+    @PluginMethod
+    public void configureIngest(PluginCall call) {
+        String deviceSecret = call.getString("deviceSecret");
+        String ingestUrl = call.getString("ingestUrl");
+        if (deviceSecret == null || ingestUrl == null) {
+            call.reject("deviceSecret and ingestUrl are required");
+            return;
+        }
+        SharedPreferences prefs = getContext().getSharedPreferences(INGEST_PREFS, android.content.Context.MODE_PRIVATE);
+        prefs.edit()
+            .putString(KEY_SECRET, deviceSecret)
+            .putString(KEY_URL, ingestUrl)
+            .apply();
+        call.resolve();
     }
 
     @PluginMethod

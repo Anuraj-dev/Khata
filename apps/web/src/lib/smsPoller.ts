@@ -10,6 +10,9 @@ export interface SmsReaderPlugin {
     limit: number;
     afterTimestamp: number;
   }): Promise<{ messages: Array<{ sender: string; body: string; timestamp: number }> }>;
+  // Persists the device secret + ingest URL where the background SMS receiver can
+  // read them, so it can post incoming SMS to Convex while the app is closed.
+  configureIngest(options: { deviceSecret: string; ingestUrl: string }): Promise<void>;
 }
 
 const SmsReader = registerPlugin<SmsReaderPlugin>("SmsReader", {
@@ -17,6 +20,7 @@ const SmsReader = registerPlugin<SmsReaderPlugin>("SmsReader", {
   web: {
     requestPermission: async () => ({ granted: false }),
     getRecentSms: async () => ({ messages: [] }),
+    configureIngest: async () => {},
   },
 });
 
