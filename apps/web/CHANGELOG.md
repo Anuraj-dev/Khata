@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.9.2](https://github.com/Anuraj-dev/Khata/compare/v0.9.1...v0.9.2) (2026-06-08)
+
+
+### Bug Fixes
+
+* **sms:** unbind device on sign-out and unify UPI parser ([a6c1947](https://github.com/Anuraj-dev/Khata/commit/a6c19471ad7fa565313bfe9a8b064610c2652ea1))
+* trip sharing, background UPI auto-log, day-row stats + SMS hardening ([c14678c](https://github.com/Anuraj-dev/Khata/commit/c14678cdad6ab62422a9188a89f5468b5ca1cbb8))
+* trip sharing, background UPI auto-log, day-row stats, invite links ([436bd9a](https://github.com/Anuraj-dev/Khata/commit/436bd9a14017243d8524e0bf260c00196cdabe93))
+
 ## [0.9.1](https://github.com/Anuraj-dev/Khata/compare/v0.9.0...v0.9.1) (2026-06-05)
 
 
