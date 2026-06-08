@@ -37,6 +37,24 @@ export const registerDevice = mutation({
   },
 });
 
+// Called on sign-out to unbind this device. Removes the secret→owner mapping so
+// any SMS the background receiver posts after logout resolves to nothing (the
+// HTTP route answers 401, and the receiver then forgets its config). Only the
+// caller's own device row is deletable.
+export const unregisterDevice = mutation({
+  args: { deviceSecret: v.string() },
+  handler: async (ctx, { deviceSecret }) => {
+    const owner = await requireTokenIdentifier(ctx);
+    const existing = await ctx.db
+      .query("smsDevices")
+      .withIndex("by_secret", (q) => q.eq("deviceSecret", deviceSecret))
+      .unique();
+    if (existing && existing.ownerTokenIdentifier === owner) {
+      await ctx.db.delete(existing._id);
+    }
+  },
+});
+
 function buildNote(party: string | undefined, direction: "debit" | "credit"): string {
   if (party) return party;
   return direction === "credit" ? "Money received" : "Bank transaction";

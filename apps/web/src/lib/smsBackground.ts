@@ -15,6 +15,27 @@ export function getDeviceSecret(): string {
   return secret;
 }
 
+// Reads the existing secret without minting a new one — used on sign-out to know
+// which device row to unbind server-side. Returns null if never registered.
+export function peekDeviceSecret(): string | null {
+  return localStorage.getItem(DEVICE_SECRET_KEY);
+}
+
+// Sign-out: stop the native receiver from posting (clear its config) and drop the
+// local secret so the next signed-in user mints a fresh one rather than inheriting
+// this device's binding. Pair with smsIngest.unregisterDevice to remove the
+// server-side secret→owner mapping.
+export async function clearSmsBackground(): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      await SmsReader.clearIngest();
+    } catch {
+      // Plugin not available (older build) — nothing to clear natively.
+    }
+  }
+  localStorage.removeItem(DEVICE_SECRET_KEY);
+}
+
 // HTTP actions live on the .convex.site origin (queries/mutations are on
 // .convex.cloud). Derive the ingest URL from the configured Convex URL.
 function ingestUrl(): string {

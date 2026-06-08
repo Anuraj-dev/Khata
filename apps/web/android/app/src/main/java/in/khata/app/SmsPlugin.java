@@ -67,6 +67,15 @@ public class SmsPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void clearIngest(PluginCall call) {
+        // Sign-out: forget the device secret + URL so the background receiver stops
+        // posting incoming SMS until the next configureIngest re-registers.
+        SharedPreferences prefs = getContext().getSharedPreferences(INGEST_PREFS, android.content.Context.MODE_PRIVATE);
+        prefs.edit().remove(KEY_SECRET).remove(KEY_URL).apply();
+        call.resolve();
+    }
+
+    @PluginMethod
     public void getRecentSms(PluginCall call) {
         int limit = call.getInt("limit", 50);
         long afterTimestamp = call.getLong("afterTimestamp", 0L);

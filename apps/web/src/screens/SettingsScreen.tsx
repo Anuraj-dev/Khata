@@ -4,6 +4,7 @@ import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { authClient } from "../lib/auth-client";
 import { expenseStore } from "../lib/expenseStorage";
+import { clearSmsBackground, peekDeviceSecret } from "../lib/smsBackground";
 import { requireDeviceAuth } from "../lib/deviceAuth";
 import { useCategories } from "../hooks/useCategories";
 import { AddCategoryForm } from "../components/AddCategoryForm";
@@ -19,6 +20,7 @@ export function SettingsScreen({ showToast }: Props) {
   const navigate = useNavigate();
   const clearAllExpenses = useMutation(api.expenses.clearAll);
   const clearAllTrips = useMutation(api.trips.clearAll);
+  const unregisterDevice = useMutation(api.smsIngest.unregisterDevice);
   const [expenseBusy, setExpenseBusy] = useState(false);
   const [tripBusy, setTripBusy] = useState(false);
   const [typedExpenseConfirm, setTypedExpenseConfirm] = useState<string | null>(null);
@@ -83,6 +85,19 @@ export function SettingsScreen({ showToast }: Props) {
 
   async function handleSignOut() {
     try {
+      // Unbind background SMS ingest first, while we still have a session: drop the
+      // server-side device→owner mapping, then clear the native config + local
+      // secret. Otherwise an SMS arriving after logout would auto-log to this
+      // (now signed-out) account. Best-effort — never block sign-out on it.
+      const deviceSecret = peekDeviceSecret();
+      if (deviceSecret) {
+        try {
+          await unregisterDevice({ deviceSecret });
+        } catch {
+          // Offline / already unbound — the receiver's 401 fallback still covers it.
+        }
+      }
+      await clearSmsBackground();
       await authClient.signOut();
       expenseStore.clearAllLocal();
       window.location.href = "/";

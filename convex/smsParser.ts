@@ -1,9 +1,7 @@
-// UPI SMS parser — server copy of apps/web/src/lib/smsParser.ts.
-//
-// IMPORTANT: keep this in sync with the web copy by hand. Convex bundles its
-// functions separately and can't import from apps/web, so the background SMS
-// ingest path (convex/smsIngest.ts) re-uses this duplicate. Pure string logic,
-// no Convex APIs — safe to run inside a mutation.
+// UPI SMS parser — single source of truth for both the background ingest path
+// (convex/smsIngest.ts) and the foreground poller (apps/web/src/lib/smsPoller.ts,
+// which imports this file directly). Pure string logic, no Convex APIs — safe to
+// run inside a mutation and safe to bundle into the web app.
 //
 // All amounts in paise to avoid float issues. parseSms returns null if the SMS
 // is not a UPI transaction.

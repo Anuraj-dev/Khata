@@ -67,7 +67,13 @@ public class SmsReceiver extends BroadcastReceiver {
         final PendingResult pending = goAsync();
         new Thread(() -> {
             try {
-                post(ingestUrl, deviceSecret, finalSender, body, finalTimestamp);
+                int code = post(ingestUrl, deviceSecret, finalSender, body, finalTimestamp);
+                // 401 means the server no longer knows this device (account cleared
+                // or signed out). Forget the config so we stop posting on every SMS;
+                // the app re-registers via SmsPlugin.configureIngest on next launch.
+                if (code == 401) {
+                    prefs.edit().remove(SmsPlugin.KEY_SECRET).remove(SmsPlugin.KEY_URL).apply();
+                }
             } catch (Exception e) {
                 Log.w(TAG, "Ingest post failed: " + e.getMessage());
             } finally {
@@ -93,7 +99,7 @@ public class SmsReceiver extends BroadcastReceiver {
         return out;
     }
 
-    private void post(String urlStr, String deviceSecret, String sender, String body, long timestamp)
+    private int post(String urlStr, String deviceSecret, String sender, String body, long timestamp)
         throws Exception {
         JSONObject json = new JSONObject();
         json.put("deviceSecret", deviceSecret);
@@ -114,6 +120,7 @@ public class SmsReceiver extends BroadcastReceiver {
             }
             int code = conn.getResponseCode();
             Log.d(TAG, "Ingest response: " + code);
+            return code;
         } finally {
             conn.disconnect();
         }
