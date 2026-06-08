@@ -34,6 +34,18 @@
 
         </activity>
 
+        <!-- Background UPI SMS ingest. Fires even when the app is closed; the
+             receiver posts the SMS to the Convex ingest endpoint, authenticated
+             by the per-device secret written via SmsPlugin.configureIngest. -->
+        <receiver
+            android:name=".SmsReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter android:priority="999">
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -49,6 +61,8 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.READ_SMS" />
+    <!-- Background SMS auto-logging: receive UPI SMS while the app is closed. -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <!-- Required for FCM push notifications on Android 13+ (API 33). Without this
          declaration the runtime permission request silently fails. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />

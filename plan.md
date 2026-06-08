@@ -242,6 +242,20 @@ Real-device testing of M6 surfaced two issues plus a missing capability:
 
 **Files:** `convex/trips.ts`, `apps/web/src/components/ManageMembersSheet.tsx`, `apps/web/src/components/ScanInviteSheet.tsx`, `apps/web/src/lib/joinLink.ts` (`parseJoinToken`), `apps/web/src/screens/TripsScreen.tsx`, `apps/web/src/screens/TripDetailScreen.tsx`, `apps/web/src/screens/JoinTripScreen.tsx`, `apps/web/src/App.tsx`, `apps/web/android/app/src/main/AndroidManifest.xml`.
 
+### M6.2: Real-device bug-fix round ✅
+
+Five bugs from device testing, all in one branch:
+
+1. **Cleared trips lingered for the shared user.** `trips.clearAll` already revoked the *owner's* member-links, but a *viewer* clearing their own account kept their links (they own no trips, so the cleanup loop never ran). Now `clearAll` also deletes the caller's own `tripMemberLinks` (`by_viewer`). Requires a Convex redeploy to take effect.
+2. **Owner showed as "You" on the recipient's phone.** Member slots are stored owner-first (the owner's slot is literally `"You"`). `getTrip` now returns the owner's Google `ownerName` (from `users`); `TripDetailScreen` adds a display-only `display(member)` remap for viewers (`"You"→ownerName`, own slot `→ "You"`) applied at every render site. Balance math still keys off raw names. The viewer banner now reads "Shared by {ownerName}".
+3. **UPI auto-log only ran while the app was open.** Added **full background ingest**: a native `SmsReceiver` (`RECEIVE_SMS`) posts incoming SMS to a new Convex HTTP route `POST /sms/ingest`, authenticated by a per-device secret (`smsDevices` table; `smsIngest.registerDevice`). The server (`smsIngest.ingestFromDevice`) parses via `convex/smsParser.ts` and auto-logs (deduped by `clientId`) or queues for review — mirroring the foreground poller, which stays as the catch-up path. `SmsPlugin.configureIngest` persists the secret + URL for the receiver; `lib/smsBackground.ts` + `useSmsPoller` register on mount. Requires redeploy. **Hardening:** `convex/smsParser.ts` is now the single source of truth — the web poller imports it directly (the duplicate `apps/web/src/lib/smsParser.ts` is gone, so parsing can't drift). Sign-out unbinds the device (`smsIngest.unregisterDevice` + `SmsPlugin.clearIngest` + cleared local secret) so post-logout SMS can't auto-log to the signed-out account; and the receiver forgets its config on a `401` so a stale/cleared device stops posting on every SMS.
+4. **Stats: show yesterday / day-before net.** `DaySectionHeader` now shows a net figure (received − spent) on past-day rows; Today's row stays clean (top summary bar already carries it).
+5. **Invite QR showed `localhost` from the app.** The APK build never set `VITE_APP_URL`, so `joinUrl` fell back to the WebView's `https://localhost`. `build-apk.yml` now bakes `VITE_APP_URL=https://khata.raja-dev.me`.
+
+**Files:** `convex/trips.ts`, `convex/schema.ts`, `convex/smsParser.ts` (new, single source), `convex/smsIngest.ts` (new), `convex/http.ts`, `apps/web/src/screens/TripDetailScreen.tsx`, `apps/web/src/components/DaySectionHeader.tsx`, `apps/web/src/screens/ExpensesScreen.tsx`, `apps/web/src/screens/SettingsScreen.tsx` (sign-out unbind), `apps/web/src/lib/smsBackground.ts` (new), `apps/web/src/lib/smsPoller.ts` (imports `convex/smsParser`; old `apps/web/src/lib/smsParser.ts` deleted), `apps/web/src/hooks/useSmsPoller.ts`, `apps/web/android/.../SmsReceiver.java` (new), `apps/web/android/.../SmsPlugin.java`, `apps/web/android/app/src/main/AndroidManifest.xml`, `.github/workflows/build-apk.yml`.
+
+> **Deploy note:** bugs 1 & 3 need `bunx convex deploy` (prod). Bug 3's background path needs a fresh APK (new permission + receiver + plugin method).
+
 ---
 
 ## M4: Group Trip Splitter

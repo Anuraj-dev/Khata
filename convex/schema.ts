@@ -130,6 +130,19 @@ export default defineSchema({
     .index("by_owner", ["ownerTokenIdentifier"])
     .index("by_fcm_token", ["fcmToken"]),
 
+  // Maps a device (identified by an opaque, randomly-generated secret) to the
+  // signed-in user. Lets the native SMS BroadcastReceiver post incoming UPI SMS
+  // to the HTTP ingest endpoint while the app is closed — the secret resolves to
+  // the owner server-side (no auth token available in a background receiver).
+  smsDevices: defineTable({
+    ownerTokenIdentifier: v.string(),
+    deviceSecret: v.string(),
+    platform: v.string(),
+    updatedAt: v.number(),
+  })
+    .index("by_secret", ["deviceSecret"])
+    .index("by_owner", ["ownerTokenIdentifier"]),
+
   smsReviewQueue: defineTable({
     rawSms: v.string(),
     parsedAmount: v.optional(v.number()),

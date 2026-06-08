@@ -1,5 +1,10 @@
-// UPI SMS parser — covers 12+ Indian bank formats.
-// All amounts in paise to avoid float issues. Returns null if SMS is not a UPI transaction.
+// UPI SMS parser — single source of truth for both the background ingest path
+// (convex/smsIngest.ts) and the foreground poller (apps/web/src/lib/smsPoller.ts,
+// which imports this file directly). Pure string logic, no Convex APIs — safe to
+// run inside a mutation and safe to bundle into the web app.
+//
+// All amounts in paise to avoid float issues. parseSms returns null if the SMS
+// is not a UPI transaction.
 
 export type Category = "food" | "travel" | "shopping" | "bills" | "health" | "other";
 
@@ -11,20 +16,13 @@ export type ParsedSms = {
   date?: string; // ISO yyyy-mm-dd, when a date is present in the message body
 };
 
-// Currency-prefixed amount ("Rs.250", "INR 1,200.50", "₹49") is the reliable one.
 const AMOUNT_RE = /(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i;
-// Fallback for banks (e.g. SBI) that write "debited by 250.0" with no symbol.
 const AMOUNT_NEAR_KEYWORD_RE =
   /(?:debited|credited|debit|credit|deducted|sent|paid|received|spent)\s+(?:by|with|for|of)?\s*(?:rs\.?|inr|₹)?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i;
 const UPI_REF_RE = /(?:upi\s*ref(?:erence)?\s*(?:no\.?|number)?|ref\s*no\.?)\s*[:\-]?\s*([0-9]{10,})/i;
 const DEBIT_KEYWORDS = /(?:debited|deducted|sent|paid|payment\s+of|transferred\s+to|spent)/i;
 const CREDIT_KEYWORDS = /(?:credited|received|added|deposited|refund)/i;
 
-// Party extraction is direction-aware: a debit's counterparty follows
-// "to/trf to/paid to/at" (the bank's own name often follows "From" on debits),
-// while a credit's counterparty follows "from". A name token runs until a
-// trailing keyword (on, ref, …), punctuation, or a number. VPA handles
-// (name@bank) are matched first since they're unambiguous.
 const DEBIT_PREP = "to|trf\\s+to|paid\\s+to|at";
 const CREDIT_PREP = "from";
 const partyTerminator = "(?=\\s+(?:on|ref|upi|dated|via|a\\/c|account|info|not|rs|inr|\\d)|[.,;:\\n]|$)";
@@ -35,9 +33,6 @@ function nameRe(prep: string) {
   return new RegExp(`(?:${prep})\\s+(?:vpa\\s+)?([A-Za-z][A-Za-z0-9 .&'\\-]{1,40}?)${partyTerminator}`, "i");
 }
 
-// Date formats common to Indian bank/UPI SMS:
-//   04-06-26, 04/06/2026, 04.06.26   (DD-MM-YY[YY])
-//   04-Jun-26, 04 Jun 2026, 02Jun26  (DD-Mon-YY[YY], separators optional)
 const NUMERIC_DATE_RE = /\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})\b/;
 const MONTH_NAME_DATE_RE = /\b(\d{1,2})[-/ ]?([A-Za-z]{3})[A-Za-z]*[-/ ]?(\d{2,4})\b/;
 const MONTHS: Record<string, number> = {
@@ -58,8 +53,6 @@ function toIso(year: number, month: number, day: number): string | undefined {
   return `${year}-${pad(month)}-${pad(day)}`;
 }
 
-// Extracts a transaction date from the SMS body. Returns undefined when no
-// recognizable date is present (caller should fall back to the receive time).
 export function parseSmsDate(text: string): string | undefined {
   const named = MONTH_NAME_DATE_RE.exec(text);
   if (named) {
@@ -81,7 +74,6 @@ const CATEGORY_KEYWORDS: Array<[Category, RegExp]> = [
   ["health", /pharmacy|hospital|medical|apollo|clinic|chemist|diagnostic|pharmeasy|netmeds|1mg/i],
 ];
 
-// Best-effort category from the party name + raw body. Defaults to "other".
 export function categorizeSms(party: string | undefined, body: string): Category {
   const haystack = `${party ?? ""} ${body}`;
   for (const [category, re] of CATEGORY_KEYWORDS) {
@@ -128,8 +120,6 @@ function extractParty(text: string, direction: "debit" | "credit"): string | und
   return undefined;
 }
 
-// Turns a raw party token into a human label: drops the @bank from a VPA, splits
-// separators into words, and title-cases. "swiggy.stores@icici" -> "Swiggy Stores".
 export function cleanPartyName(raw: string): string | undefined {
   let s = raw.trim();
   const at = s.indexOf("@");
@@ -138,9 +128,6 @@ export function cleanPartyName(raw: string): string | undefined {
   if (!s) return undefined;
   const words = s.split(" ");
   const titleCase = (w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
-  // A multi-word all-caps string is almost always a person's name ("ANURAJ
-  // SAIKIA" -> "Anuraj Saikia"). Single tokens stay as-is so brand/acronyms
-  // ("HDFC", "SWIGGY") aren't mangled.
   if (words.length > 1 && s === s.toUpperCase()) {
     return words.map(titleCase).join(" ");
   }
@@ -149,9 +136,6 @@ export function cleanPartyName(raw: string): string | undefined {
     .join(" ");
 }
 
-// Deterministic id so the same transaction is never logged twice, even when the
-// poller re-reads the inbox after an app restart. UPI ref is globally unique when
-// present; otherwise fall back to a hash of amount + date + message body.
 export function smsClientId(parsed: ParsedSms, body: string): string {
   if (parsed.upiRef) return `sms-${parsed.upiRef}`;
   return `sms-${parsed.amount}-${parsed.date ?? ""}-${hash(body)}`;

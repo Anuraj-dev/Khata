@@ -50,6 +50,18 @@ export function TripDetailScreen() {
   const isSettled = trip.status === "settled";
   // Viewers (people the trip was shared with) get a strictly read-only view.
   const isViewer = trip.role === "viewer";
+  // Member names are stored from the owner's perspective: the owner's own slot is
+  // literally "You". For a viewer we relabel that to the owner's real name, and
+  // relabel the viewer's own slot to "You". Display-only — all balance math below
+  // still keys off the raw member names.
+  const display = (m: string) =>
+    !isViewer
+      ? m
+      : m === "You"
+        ? trip.ownerName ?? "Owner"
+        : m === trip.viewerMember
+          ? "You"
+          : m;
   const rawNet = computeBalances(trip.members, expenses);
   const net = applyPayments(rawNet, payments);
   const transfers = simplifyDebts(net);
@@ -122,12 +134,12 @@ export function TripDetailScreen() {
               className="text-left text-xs truncate active:opacity-60 transition-opacity"
               style={{ background: "none", border: "none", color: "var(--color-text-muted)", padding: 0 }}
             >
-              {trip.members.join(", ")}
+              {trip.members.map(display).join(", ")}
               <span style={{ color: "var(--color-accent)", fontWeight: 600 }}> · Manage</span>
             </button>
           ) : (
             <span className="text-xs truncate" style={{ color: "var(--color-text-muted)" }}>
-              {trip.members.join(", ")}
+              {trip.members.map(display).join(", ")}
             </span>
           )}
         </div>
@@ -146,7 +158,7 @@ export function TripDetailScreen() {
       {isViewer && (
         <div className="mx-4 mt-1 mb-1 flex items-center gap-2 px-3 py-2 text-xs" style={{ background: "var(--color-accent-subtle)", color: "var(--color-accent)", borderRadius: "var(--radius-md)" }}>
           <EyeIcon size={14} strokeWidth={2} />
-          <span>Shared with you · read-only{trip.viewerMember ? ` · you're ${trip.viewerMember}` : ""}</span>
+          <span>Shared by {trip.ownerName ?? "owner"} · read-only</span>
         </div>
       )}
 
@@ -159,7 +171,7 @@ export function TripDetailScreen() {
           const label = settled ? "settled up" : bal > 0 ? `gets back ${formatRupees(bal)}` : `owes ${formatRupees(-bal)}`;
           return (
             <div key={m} className="flex items-center justify-between px-4 py-2.5" style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
-              <span className="text-sm" style={{ color: "var(--color-text-primary)" }}>{m}</span>
+              <span className="text-sm" style={{ color: "var(--color-text-primary)" }}>{display(m)}</span>
               <span className="text-sm tabular-nums" style={{ color, fontFamily: "var(--font-mono)" }}>{label}</span>
             </div>
           );
@@ -172,8 +184,8 @@ export function TripDetailScreen() {
           {transfers.map((t, i) => (
             <div key={i} className="flex items-center justify-between gap-2 px-4 py-2.5" style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
               <span className="text-sm flex-1 min-w-0" style={{ color: "var(--color-text-secondary)" }}>
-                <span style={{ color: "var(--color-text-primary)", fontWeight: 500 }}>{t.from}</span> pays{" "}
-                <span style={{ color: "var(--color-text-primary)", fontWeight: 500 }}>{t.to}</span>
+                <span style={{ color: "var(--color-text-primary)", fontWeight: 500 }}>{display(t.from)}</span> pays{" "}
+                <span style={{ color: "var(--color-text-primary)", fontWeight: 500 }}>{display(t.to)}</span>
               </span>
               <span className="text-sm tabular-nums shrink-0" style={{ color: "var(--color-accent)", fontFamily: "var(--font-mono)" }}>
                 {formatRupees(t.amount)}
@@ -206,7 +218,7 @@ export function TripDetailScreen() {
           {payments.map((p) => (
             <div key={p._id} className="flex items-center justify-between gap-2 px-4 py-2.5" style={{ borderBottom: "1px solid var(--color-border-subtle)" }}>
               <span className="text-sm flex-1 min-w-0" style={{ color: "var(--color-text-muted)", textDecoration: "line-through" }}>
-                <span style={{ fontWeight: 500 }}>{p.fromMember}</span> paid <span style={{ fontWeight: 500 }}>{p.toMember}</span>
+                <span style={{ fontWeight: 500 }}>{display(p.fromMember)}</span> paid <span style={{ fontWeight: 500 }}>{display(p.toMember)}</span>
               </span>
               <span className="text-sm tabular-nums shrink-0" style={{ color: "var(--color-credit)", fontFamily: "var(--font-mono)" }}>
                 ✓ {formatRupees(p.amount)}
@@ -246,7 +258,7 @@ export function TripDetailScreen() {
               <div className="flex flex-col min-w-0 flex-1">
                 <span className="text-sm font-medium truncate" style={{ color: "var(--color-text-primary)" }}>{e.note}</span>
                 <span className="text-xs" style={{ color: "var(--color-text-muted)" }}>
-                  {e.paidBy} paid · {e.splitMode === "custom" ? "custom split" : `split ${e.splitAmong.length}`}
+                  {display(e.paidBy)} paid · {e.splitMode === "custom" ? "custom split" : `split ${e.splitAmong.length}`}
                 </span>
               </div>
               <span className="text-sm tabular-nums shrink-0" style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}>

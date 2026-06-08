@@ -18,6 +18,8 @@ import type * as index from "../index.js";
 import type * as pushNotifications from "../pushNotifications.js";
 import type * as pushTokens from "../pushTokens.js";
 import type * as settlements from "../settlements.js";
+import type * as smsIngest from "../smsIngest.js";
+import type * as smsParser from "../smsParser.js";
 import type * as smsQueue from "../smsQueue.js";
 import type * as tripAccess from "../tripAccess.js";
 import type * as tripShares from "../tripShares.js";
@@ -41,6 +43,8 @@ declare const fullApi: ApiFromModules<{
   pushNotifications: typeof pushNotifications;
   pushTokens: typeof pushTokens;
   settlements: typeof settlements;
+  smsIngest: typeof smsIngest;
+  smsParser: typeof smsParser;
   smsQueue: typeof smsQueue;
   tripAccess: typeof tripAccess;
   tripShares: typeof tripShares;
