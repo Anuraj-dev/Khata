@@ -12,6 +12,17 @@ const config: CapacitorConfig = {
       keystorePath: undefined,
     },
   },
+  plugins: {
+    SplashScreen: {
+      // Hold the splash until React signals first paint (SplashScreen.hide()),
+      // so there's no white flash between the native launch screen and the
+      // webview drawing. Matches the app's dark background.
+      launchAutoHide: false,
+      backgroundColor: "#0a0a0b",
+      androidScaleType: "CENTER_CROP",
+      showSpinner: false,
+    },
+  },
 };
 
 export default config;

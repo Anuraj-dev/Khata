@@ -72,4 +72,23 @@ export default defineConfig({
       "@convex/_generated": path.resolve(__dirname, "../../convex/_generated"),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Split the big, rarely-changing vendors into their own chunks so the
+        // WebView can cache them across app updates and parse them in parallel.
+        // qr-scanner / qrcode are deliberately left out — they ride along with
+        // the lazily-loaded Trips/Join route chunks instead of the main bundle.
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (/[\\/]node_modules[\\/](react|react-dom|react-router|scheduler)[\\/]/.test(id)) {
+            return "react-vendor";
+          }
+          if (/[\\/]node_modules[\\/](convex|@convex-dev|better-auth)[\\/]/.test(id)) {
+            return "convex-vendor";
+          }
+        },
+      },
+    },
+  },
 });
