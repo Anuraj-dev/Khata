@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.3](https://github.com/Anuraj-dev/Khata/compare/v0.9.2...v0.9.3) (2026-06-09)
+
+
+### Performance Improvements
+
+* **web:** speed up cold start with code-splitting and optimistic auth ([4d534ab](https://github.com/Anuraj-dev/Khata/commit/4d534abd65fb45ddbb3ade4cf31a1cbe2c94bd19))
+* **web:** speed up cold start with code-splitting and optimistic auth ([2456e44](https://github.com/Anuraj-dev/Khata/commit/2456e443bff0835d1ac80dcea94278deb94e346d))
+
 ## [0.9.2](https://github.com/Anuraj-dev/Khata/compare/v0.9.1...v0.9.2) (2026-06-08)
 
 
