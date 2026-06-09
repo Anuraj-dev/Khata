@@ -1,23 +1,45 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router";
 import { useConvexAuth } from "convex/react";
 import { Capacitor } from "@capacitor/core";
+import { SplashScreen } from "@capacitor/splash-screen";
 import { ConvexClientProvider } from "./lib/convex";
 import { RootErrorBoundary } from "./components/RootErrorBoundary";
 import { BootScreen } from "./components/BootScreen";
-import { AuthScreen } from "./components/AuthScreen";
+import { ScreenFallback } from "./components/ScreenFallback";
 import { BottomNavBar } from "./components/BottomNavBar";
 import { FAB } from "./components/FAB";
 import { AddExpenseDrawer } from "./components/AddExpenseDrawer";
 import { BrandMark } from "./components/BrandMark";
-import { LandingScreen } from "./screens/LandingScreen";
+// Expenses is the landing screen — keep it eager so it's in the main bundle.
 import { ExpensesScreen } from "./screens/ExpensesScreen";
-import { TripsScreen } from "./screens/TripsScreen";
-import { TripDetailScreen } from "./screens/TripDetailScreen";
-import { InsightsScreen } from "./screens/InsightsScreen";
-import { JoinTripScreen } from "./screens/JoinTripScreen";
-import { SmsQueueScreen } from "./screens/SmsQueueScreen";
-import { SettingsScreen } from "./screens/SettingsScreen";
+
+// Everything off the landing path is code-split: its JS (and heavy deps like
+// qr-scanner / qrcode) only loads when the user actually navigates there.
+const LandingScreen = lazy(() =>
+  import("./screens/LandingScreen").then((m) => ({ default: m.LandingScreen }))
+);
+const AuthScreen = lazy(() =>
+  import("./components/AuthScreen").then((m) => ({ default: m.AuthScreen }))
+);
+const TripsScreen = lazy(() =>
+  import("./screens/TripsScreen").then((m) => ({ default: m.TripsScreen }))
+);
+const TripDetailScreen = lazy(() =>
+  import("./screens/TripDetailScreen").then((m) => ({ default: m.TripDetailScreen }))
+);
+const InsightsScreen = lazy(() =>
+  import("./screens/InsightsScreen").then((m) => ({ default: m.InsightsScreen }))
+);
+const JoinTripScreen = lazy(() =>
+  import("./screens/JoinTripScreen").then((m) => ({ default: m.JoinTripScreen }))
+);
+const SmsQueueScreen = lazy(() =>
+  import("./screens/SmsQueueScreen").then((m) => ({ default: m.SmsQueueScreen }))
+);
+const SettingsScreen = lazy(() =>
+  import("./screens/SettingsScreen").then((m) => ({ default: m.SettingsScreen }))
+);
 import { captureJoinFromUrl, takePendingJoin } from "./lib/joinLink";
 import { useExpenseMutations } from "./hooks/useExpenseMutations";
 import { useRetryQueue } from "./hooks/useRetryQueue";
@@ -126,31 +148,34 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
         </div>
       )}
 
-      {/* Screen content */}
+      {/* Screen content. The Suspense fallback only fills this content area, so
+          lazy route chunks load without blanking the header or bottom nav. */}
       <main className="flex flex-col flex-1 min-h-0 overflow-hidden">
-        <Routes>
-          <Route
-            index
-            element={
-              <ExpensesScreen
-                isAuthenticated={isAuthenticated}
-                onAddPress={() => setDrawerOpen(true)}
-              />
-            }
-          />
-          {/* SMS review queue is native-only; never expose SMS UI on web. */}
-          {Capacitor.isNativePlatform() && (
-            <Route path="review" element={<SmsQueueScreen />} />
-          )}
-          <Route path="trips" element={<TripsScreen />} />
-          <Route path="trips/:tripId" element={<TripDetailScreen />} />
-          <Route path="join/:token" element={<JoinTripScreen />} />
-          <Route path="insights" element={<InsightsScreen />} />
-          <Route path="settings" element={<SettingsScreen showToast={showToast} />} />
-          {/* Unknown path (e.g. a stale PWA shell that predates a route) →
-              home, never a blank screen. */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense fallback={<ScreenFallback />}>
+          <Routes>
+            <Route
+              index
+              element={
+                <ExpensesScreen
+                  isAuthenticated={isAuthenticated}
+                  onAddPress={() => setDrawerOpen(true)}
+                />
+              }
+            />
+            {/* SMS review queue is native-only; never expose SMS UI on web. */}
+            {Capacitor.isNativePlatform() && (
+              <Route path="review" element={<SmsQueueScreen />} />
+            )}
+            <Route path="trips" element={<TripsScreen />} />
+            <Route path="trips/:tripId" element={<TripDetailScreen />} />
+            <Route path="join/:token" element={<JoinTripScreen />} />
+            <Route path="insights" element={<InsightsScreen />} />
+            <Route path="settings" element={<SettingsScreen showToast={showToast} />} />
+            {/* Unknown path (e.g. a stale PWA shell that predates a route) →
+                home, never a blank screen. */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </main>
 
       <BottomNavBar />
@@ -168,17 +193,41 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
   );
 }
 
+// Remembers across launches whether the last resolved state was signed-in, so a
+// returning user can be shown the app shell immediately instead of a spinner
+// while the session network round-trip resolves in the background.
+const WAS_AUTHED_KEY = "khata:wasAuthed";
+
 function AuthGate({ children }: { children: (isAuthenticated: boolean) => React.ReactNode }) {
   // Reactive auth state from Convex. Unlike a one-shot getSession(), this flips
   // to authenticated automatically once the token lands after the OAuth redirect,
   // so the user lands logged in without a manual refresh.
   const { isLoading, isAuthenticated } = useConvexAuth();
+  const wasAuthed =
+    typeof localStorage !== "undefined" && localStorage.getItem(WAS_AUTHED_KEY) === "1";
 
-  if (isLoading) return <BootScreen />;
+  // Persist the resolved state for the next cold start.
+  useEffect(() => {
+    if (isLoading) return;
+    if (isAuthenticated) localStorage.setItem(WAS_AUTHED_KEY, "1");
+    else localStorage.removeItem(WAS_AUTHED_KEY);
+  }, [isLoading, isAuthenticated]);
+
+  if (isLoading) {
+    // Returning user: render the shell against the local cache right away. The
+    // expense list hydrates from localStorage, and queries no-op (isAuthenticated
+    // false) until the session lands, then flip on without a remount.
+    if (wasAuthed) return <>{children(false)}</>;
+    return <BootScreen />;
+  }
   // Logged-out: web gets the marketing landing; native (installed app) goes
   // straight to sign-in — a marketing page makes no sense inside the app.
   if (!isAuthenticated) {
-    return Capacitor.isNativePlatform() ? <AuthScreen /> : <LandingScreen />;
+    return (
+      <Suspense fallback={<BootScreen />}>
+        {Capacitor.isNativePlatform() ? <AuthScreen /> : <LandingScreen />}
+      </Suspense>
+    );
   }
   return <>{children(true)}</>;
 }
@@ -192,6 +241,17 @@ export function App() {
   // Stash an invite token from the initial URL before auth runs, so a not-yet-
   // signed-in recipient still lands on the trip after the OAuth round-trip.
   useEffect(() => { captureJoinFromUrl(); }, []);
+
+  // Native splash is held open (launchAutoHide:false) until React commits, so
+  // there's no white flash between the launch screen and the webview painting.
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    requestAnimationFrame(() => {
+      SplashScreen.hide().catch(() => {
+        // Plugin missing / already hidden — nothing to do.
+      });
+    });
+  }, []);
 
   return (
     <RootErrorBoundary>
