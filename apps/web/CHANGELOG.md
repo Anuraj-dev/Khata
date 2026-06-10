@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.4](https://github.com/Anuraj-dev/Khata/compare/v0.9.3...v0.9.4) (2026-06-10)
+
+
+### Bug Fixes
+
+* **web:** cast crossDomainClient to BetterAuthClientPlugin for type compat ([10a08f5](https://github.com/Anuraj-dev/Khata/commit/10a08f5290551d30aef9021a55acb6e2f358a797))
+* **web:** cast crossDomainClient to BetterAuthClientPlugin for type compat ([004f43d](https://github.com/Anuraj-dev/Khata/commit/004f43d7e8e788d438d7fd31fb195c006f63eb89))
+
 ## [0.9.3](https://github.com/Anuraj-dev/Khata/compare/v0.9.2...v0.9.3) (2026-06-09)
 
 
