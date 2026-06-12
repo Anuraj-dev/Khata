@@ -2,7 +2,14 @@ import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { todayIso } from "../lib/dates";
 
-export function useExpenseQueries({ isAuthenticated }: { isAuthenticated: boolean }) {
+export function useExpenseQueries({
+  isAuthenticated,
+  limit = 100,
+}: {
+  isAuthenticated: boolean;
+  // Raised in +100 steps by the "Load older" control on the expense list.
+  limit?: number;
+}) {
   const today = todayIso();
 
   const todayExpenses = useQuery(
@@ -12,7 +19,7 @@ export function useExpenseQueries({ isAuthenticated }: { isAuthenticated: boolea
 
   const recentExpenses = useQuery(
     api.expenses.listRecent,
-    isAuthenticated ? { limit: 100 } : "skip"
+    isAuthenticated ? { limit } : "skip"
   );
 
   return {

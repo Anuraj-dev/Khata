@@ -14,6 +14,18 @@ function UpiTag() {
   );
 }
 
+// Marks an expense tagged as udhaar (money lent/borrowed with a person).
+function UdhaarTag({ person }: { person: string }) {
+  return (
+    <span
+      className="shrink-0 rounded px-1.5 py-px text-[9px] font-bold tracking-wide truncate max-w-24"
+      style={{ background: "var(--color-credit)" + "1a", color: "var(--color-credit)" }}
+    >
+      🤝 {person}
+    </span>
+  );
+}
+
 type CategoryMeta = { emoji: string; color: string; label: string };
 
 type Props = {
@@ -21,10 +33,12 @@ type Props = {
   // Resolved category look. Optional so the card still renders standalone; falls
   // back to the built-in/generic resolution when omitted.
   meta?: CategoryMeta;
+  // Tap action (e.g. open the udhaar tag sheet). Card stays a plain row when omitted.
+  onPress?: () => void;
   onLongPress?: () => void;
 };
 
-export function ExpenseCard({ expense, meta }: Props) {
+export function ExpenseCard({ expense, meta, onPress }: Props) {
   const isDebit = expense.direction === "debit";
   const amountColor = isDebit ? "var(--color-debit)" : "var(--color-credit)";
   const amountPrefix = isDebit ? "−" : "+";
@@ -38,12 +52,18 @@ export function ExpenseCard({ expense, meta }: Props) {
     hour12: true,
   });
 
+  const Tag = onPress ? "button" : "div";
+
   return (
-    <div
-      className="flex items-center gap-3 px-4 py-3 transition-colors active:[background:var(--color-surface-elevated)]"
+    <Tag
+      onClick={onPress}
+      className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors active:[background:var(--color-surface-elevated)]"
       style={{
+        background: "transparent",
+        border: "none",
         borderBottom: "1px solid var(--color-border-subtle)",
         transitionDuration: "var(--dur-fast)",
+        cursor: onPress ? "pointer" : undefined,
       }}
     >
       {/* Category dot */}
@@ -64,6 +84,7 @@ export function ExpenseCard({ expense, meta }: Props) {
             {expense.note || cat.label}
           </span>
           {expense.source === "sms" && <UpiTag />}
+          {expense.udhaarPerson && <UdhaarTag person={expense.udhaarPerson} />}
         </div>
         <span
           className="text-xs truncate"
@@ -80,6 +101,6 @@ export function ExpenseCard({ expense, meta }: Props) {
       >
         {amountPrefix}{formatRupees(expense.amount)}
       </span>
-    </div>
+    </Tag>
   );
 }

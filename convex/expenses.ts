@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { internalQuery, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireTokenIdentifier } from "./authHelpers";
@@ -38,6 +38,21 @@ export const listRange = query({
         q.eq("ownerTokenIdentifier", owner).gte("date", start).lte("date", end)
       )
       .collect();
+  },
+});
+
+// Whether the user logged anything by hand on a given date. Powers the
+// end-of-day cash nudge: SMS auto-captures don't count — they need no reminder.
+export const hasManualOnDate = internalQuery({
+  args: { ownerTokenIdentifier: v.string(), date: v.string() },
+  handler: async (ctx, { ownerTokenIdentifier, date }) => {
+    const rows = await ctx.db
+      .query("expenses")
+      .withIndex("by_owner_date", (q) =>
+        q.eq("ownerTokenIdentifier", ownerTokenIdentifier).eq("date", date)
+      )
+      .collect();
+    return rows.some((r) => r.source === "manual");
   },
 });
 

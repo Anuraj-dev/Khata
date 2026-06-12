@@ -31,6 +31,8 @@ export async function initPushNotifications(
         navigate("/");
       } else if (data.type === "settlement") {
         navigate("/trips");
+      } else if (data.type === "budget" || data.type === "cash_nudge") {
+        navigate("/");
       }
     });
 
