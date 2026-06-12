@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "convex/react";
 import { useNavigate, useParams } from "react-router";
 import type { Doc } from "@convex/_generated/dataModel";
@@ -6,6 +7,7 @@ import { formatRupees } from "../lib/dates";
 import type { LocalExpense } from "../lib/expenseStorage";
 import { useCategories } from "../hooks/useCategories";
 import { ExpenseCard } from "../components/ExpenseCard";
+import { RecordRepaymentSheet } from "../components/RecordRepaymentSheet";
 
 function toLocal(e: Doc<"expenses">): LocalExpense {
   return {
@@ -31,6 +33,8 @@ export function UdhaarPersonScreen() {
   const person = decodeURIComponent(encoded ?? "");
   const history = useQuery(api.udhaar.personHistory, person ? { person } : "skip");
   const { resolve } = useCategories();
+  const [repayOpen, setRepayOpen] = useState(false);
+  const [toast, setToast] = useState<{ kind: "error" | "info"; message: string } | null>(null);
 
   const net = (history ?? []).reduce(
     (sum, e) => sum + (e.direction === "debit" ? e.amount : -e.amount),
@@ -55,7 +59,7 @@ export function UdhaarPersonScreen() {
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
-        <div className="flex flex-col min-w-0">
+        <div className="flex flex-col min-w-0 flex-1">
           <span className="text-sm font-semibold truncate" style={{ color: "var(--color-text-primary)" }}>
             {person}
           </span>
@@ -77,6 +81,19 @@ export function UdhaarPersonScreen() {
                 : `you owe ${formatRupees(-net)}`}
           </span>
         </div>
+        {!settled && (
+          <button
+            onClick={() => setRepayOpen(true)}
+            className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold mr-2 active:opacity-70 transition-opacity"
+            style={{
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border-default)",
+              color: "var(--color-text-primary)",
+            }}
+          >
+            Record repayment
+          </button>
+        )}
       </div>
 
       {/* History */}
@@ -93,6 +110,32 @@ export function UdhaarPersonScreen() {
           </p>
         )}
       </div>
+
+      <RecordRepaymentSheet
+        person={person}
+        net={net}
+        open={repayOpen}
+        onClose={() => setRepayOpen(false)}
+        showToast={(t) => {
+          setToast(t);
+          setTimeout(() => setToast(null), 3000);
+        }}
+      />
+
+      {toast && (
+        <div
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl text-sm font-medium z-50 pointer-events-none"
+          style={{
+            background: toast.kind === "error" ? "var(--color-error)" : "var(--color-surface-elevated)",
+            color: toast.kind === "error" ? "#fff" : "var(--color-text-primary)",
+            boxShadow: "var(--shadow-elevated)",
+            border: "1px solid var(--color-border-subtle)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }
