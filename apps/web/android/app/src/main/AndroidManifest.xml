@@ -37,6 +37,12 @@
                 android:name="android.app.shortcuts"
                 android:resource="@xml/shortcuts" />
 
+            <!-- FCM default channel. Must match the channel Capacitor creates on
+                 first launch so notifications are never dropped to "Miscellaneous". -->
+            <meta-data
+                android:name="com.google.firebase.messaging.default_notification_channel_id"
+                android:value="default" />
+
         </activity>
 
         <!-- Background UPI SMS ingest. Fires even when the app is closed; the

@@ -64,7 +64,13 @@ async function sendOne(
           token: fcmToken,
           notification,
           data,
-          android: { priority: "high" },
+          android: {
+            priority: "high",
+            // channel_id must match what Capacitor creates on first launch.
+            // Without this, some OEMs (Samsung, Xiaomi) silently drop the
+            // notification or route it to the muted "Miscellaneous" channel.
+            notification: { channel_id: "default" },
+          },
         },
       }),
     }

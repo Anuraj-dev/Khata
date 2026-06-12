@@ -23,6 +23,20 @@ export async function initPushNotifications(
       console.error("Push registration error:", err.error);
     });
 
+    // Foreground: FCM delivers the notification to this listener instead of
+    // showing it automatically. We re-navigate so the user isn't left on a
+    // stale screen, but we don't pop a native alert (app is already open).
+    await PushNotifications.addListener("pushNotificationReceived", (notification) => {
+      const data: Record<string, string> = notification.data ?? {};
+      if (data.type === "trip_expense" && data.tripId) {
+        navigate(`/trips/${data.tripId}`);
+      } else if (data.type === "sms_review") {
+        navigate("/");
+      } else if (data.type === "settlement") {
+        navigate("/trips");
+      }
+    });
+
     await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
       const data: Record<string, string> = action.notification.data ?? {};
       if (data.type === "trip_expense" && data.tripId) {
