@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.0](https://github.com/Anuraj-dev/Khata/compare/v0.9.4...v0.10.0) (2026-06-12)
+
+
+### Features
+
+* **web:** monthly budget with safe-to-spend and warm overspend alerts ([147f784](https://github.com/Anuraj-dev/Khata/commit/147f7842b9995b9b54a1312d1d7c8fcc84a026f5))
+* **web:** monthly budget with safe-to-spend and warm overspend alerts ([f672bd2](https://github.com/Anuraj-dev/Khata/commit/f672bd217ff253aae381894e7767276b0af39c11))
+
 ## [0.9.4](https://github.com/Anuraj-dev/Khata/compare/v0.9.3...v0.9.4) (2026-06-10)
 
 
