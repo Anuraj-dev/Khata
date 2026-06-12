@@ -18,4 +18,13 @@ crons.daily(
   {}
 );
 
+// 9:00 PM IST = 3:30 PM UTC — end-of-day cash logging nudge (skips anyone who
+// already logged a manual expense today).
+crons.daily(
+  "cash logging nudge",
+  { hourUTC: 15, minuteUTC: 30 },
+  internal.pushNotifications.sendCashNudges,
+  {}
+);
+
 export default crons;

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press launcher shortcut: jumps straight into the add-expense drawer via
+     the khata://add deep link (handled in AppShell for warm and cold starts). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="add_expense"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_add_short"
+        android:shortcutLongLabel="@string/shortcut_add_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="in.khata.app"
+            android:targetClass="in.khata.app.MainActivity"
+            android:data="khata://add" />
+    </shortcut>
+</shortcuts>

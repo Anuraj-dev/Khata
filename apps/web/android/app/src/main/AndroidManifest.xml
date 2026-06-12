@@ -32,6 +32,11 @@
                 <data android:scheme="khata" />
             </intent-filter>
 
+            <!-- Long-press launcher shortcut ("Add expense" -> khata://add). -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+
         </activity>
 
         <!-- Background UPI SMS ingest. Fires even when the app is closed; the
