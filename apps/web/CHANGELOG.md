@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/Anuraj-dev/Khata/compare/v0.10.0...v0.11.0) (2026-06-12)
+
+
+### Features
+
+* **udhaar:** person ledger + cash logging extras (re-target to main) ([31d652f](https://github.com/Anuraj-dev/Khata/commit/31d652f8e865fa71f9e58c815623cebb89a97d7f))
+
 ## [0.10.0](https://github.com/Anuraj-dev/Khata/compare/v0.9.4...v0.10.0) (2026-06-12)
 
 
