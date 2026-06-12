@@ -14,12 +14,15 @@ import { ReviewBanner } from "../components/ReviewBanner";
 import { TripsSummary } from "../components/TripsSummary";
 import { BudgetPromptCard } from "../components/BudgetPromptCard";
 import { SetBudgetSheet } from "../components/SetBudgetSheet";
+import { TagUdhaarSheet } from "../components/TagUdhaarSheet";
 
 const BUDGET_PROMPT_DISMISSED_KEY = "khata:budgetPromptDismissed";
+const HISTORY_PAGE = 100;
 
 type Props = {
   isAuthenticated: boolean;
   onAddPress: () => void;
+  showToast: (t: { kind: "error" | "info"; message: string }) => void;
 };
 
 // Sum every day-section in a given month (YYYY-MM) for the divider header.
@@ -38,12 +41,14 @@ function monthTotals(
     );
 }
 
-export function ExpensesScreen({ isAuthenticated, onAddPress }: Props) {
+export function ExpensesScreen({ isAuthenticated, onAddPress, showToast }: Props) {
   const { sections, isEmpty, todayDebit, todayCredit } = useExpenseList();
-  const { recentExpenses } = useExpenseQueries({ isAuthenticated });
+  const [historyLimit, setHistoryLimit] = useState(HISTORY_PAGE);
+  const { recentExpenses } = useExpenseQueries({ isAuthenticated, limit: historyLimit });
   const { resolve } = useCategories();
   const budget = useBudget(isAuthenticated);
   const [budgetSheetOpen, setBudgetSheetOpen] = useState(false);
+  const [taggingExpense, setTaggingExpense] = useState<LocalExpense | null>(null);
   const [promptDismissed, setPromptDismissed] = useState(
     () => localStorage.getItem(BUDGET_PROMPT_DISMISSED_KEY) === "1"
   );
@@ -81,6 +86,7 @@ export function ExpensesScreen({ isAuthenticated, onAddPress }: Props) {
       direction: e.direction,
       upiRef: e.upiRef,
       party: e.party,
+      udhaarPerson: e.udhaarPerson,
       date: e.date,
       createdAt: e._creationTime,
       syncedId: e._id,
@@ -233,12 +239,34 @@ export function ExpensesScreen({ isAuthenticated, onAddPress }: Props) {
                 showNet={section.label !== "Today"}
               />
               {section.data.map((expense) => (
-                <ExpenseCard key={expense.id} expense={expense} meta={resolve(expense.category)} />
+                <ExpenseCard
+                  key={expense.id}
+                  expense={expense}
+                  meta={resolve(expense.category)}
+                  onPress={expense.syncedId ? () => setTaggingExpense(expense) : undefined}
+                />
               ))}
             </div>
           );
         })}
+
+        {/* Older history loads in +100 steps so a decade of data stays light. */}
+        {recentExpenses.length >= historyLimit && (
+          <button
+            onClick={() => setHistoryLimit((l) => l + HISTORY_PAGE)}
+            className="w-full py-4 text-sm font-medium"
+            style={{ background: "none", border: "none", color: "var(--color-accent)", cursor: "pointer" }}
+          >
+            Load older
+          </button>
+        )}
       </div>
+
+      <TagUdhaarSheet
+        expense={taggingExpense}
+        onClose={() => setTaggingExpense(null)}
+        showToast={showToast}
+      />
 
       <SetBudgetSheet
         open={budgetSheetOpen}

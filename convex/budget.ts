@@ -56,7 +56,16 @@ async function computeMonth(
   let todaySpent = 0;
   const byCategory = new Map<string, { total: number; count: number }>();
   for (const e of monthExpenses) {
-    if (e.direction !== "debit") continue;
+    if (e.direction !== "debit") {
+      // Udhaar repayment received: the lent debit already counted as spend, so
+      // the tagged credit flows back into the budget. Untagged credits (salary,
+      // refunds) never touch spend — income doesn't change the limit.
+      if (e.udhaarPerson) {
+        monthSpent -= e.amount;
+        if (e.date === today) todaySpent -= e.amount;
+      }
+      continue;
+    }
     monthSpent += e.amount;
     if (e.date === today) todaySpent += e.amount;
     const agg = byCategory.get(e.category) ?? { total: 0, count: 0 };
