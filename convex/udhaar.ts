@@ -53,6 +53,39 @@ export const personHistory = query({
   },
 });
 
+// Create a repayment expense already tagged to a person in one shot.
+// Direction: credit = they paid you back; debit = you paid them back.
+// Budget alerts are skipped — these are settlement transactions, not new spends.
+export const addRepayment = mutation({
+  args: {
+    clientId: v.string(),
+    person: v.string(),
+    amount: v.number(),
+    direction: v.union(v.literal("debit"), v.literal("credit")),
+    note: v.string(),
+    date: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const owner = await requireTokenIdentifier(ctx);
+    const trimmed = args.person.trim();
+    if (!trimmed) throw new Error("Person name required");
+    const now = Date.now();
+    await ctx.db.insert("expenses", {
+      clientId: args.clientId,
+      amount: args.amount,
+      note: args.note,
+      category: "other",
+      source: "manual",
+      direction: args.direction,
+      date: args.date,
+      udhaarPerson: trimmed,
+      ownerTokenIdentifier: owner,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
 // Tag or untag an expense. `person: null` clears the tag. Names are trimmed;
 // the same trimmed string is what groups entries into one person.
 export const setTag = mutation({
