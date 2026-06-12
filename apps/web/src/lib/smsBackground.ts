@@ -1,5 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { SmsReader } from "./smsPoller";
+import { CONVEX_SITE_URL } from "./deployment";
 
 const DEVICE_SECRET_KEY = "khata_sms_device_secret";
 
@@ -39,10 +40,7 @@ export async function clearSmsBackground(): Promise<void> {
 // HTTP actions live on the .convex.site origin (queries/mutations are on
 // .convex.cloud). Derive the ingest URL from the configured Convex URL.
 function ingestUrl(): string {
-  const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined;
-  if (!convexUrl) return "";
-  const site = convexUrl.replace(/\.convex\.cloud\/?$/, ".convex.site");
-  return `${site.replace(/\/$/, "")}/sms/ingest`;
+  return `${CONVEX_SITE_URL}/sms/ingest`;
 }
 
 // Native-only: hand the device secret + ingest URL to the native layer so the

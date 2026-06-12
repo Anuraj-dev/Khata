@@ -50,6 +50,11 @@ export function useExpenseList() {
     expenseStore.get,
     expenseStore.get,
   );
+  const isHydrated = useSyncExternalStore(
+    expenseStore.subscribe,
+    expenseStore.isHydrated,
+    expenseStore.isHydrated,
+  );
 
   const sections = groupByDate(expenses);
   const todaySection = sections.find((s) => s.label === "Today");
@@ -57,6 +62,7 @@ export function useExpenseList() {
   return {
     sections,
     isEmpty: expenses.length === 0,
+    isHydrated,
     todayDebit: todaySection?.totalDebit ?? 0,
     todayCredit: todaySection?.totalCredit ?? 0,
   };

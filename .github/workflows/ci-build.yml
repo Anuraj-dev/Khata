@@ -22,6 +22,5 @@ jobs:
       - name: Build
         working-directory: apps/web
         env:
-          VITE_CONVEX_URL: https://placeholder.convex.cloud
           VITE_GOOGLE_CLIENT_ID: placeholder
         run: bun run build

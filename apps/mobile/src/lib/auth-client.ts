@@ -2,9 +2,7 @@ import { createAuthClient } from "better-auth/react";
 import { convexClient, crossDomainClient } from "@convex-dev/better-auth/client/plugins";
 import * as SecureStore from "expo-secure-store";
 import { mobileLogger } from "./logger";
-
-const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL ?? "";
-const baseURL = convexUrl.replace(".convex.cloud", ".convex.site");
+import { CONVEX_SITE_URL } from "./deployment";
 
 // Synchronous in-memory cache backed by SecureStore. Auth calls are sync-first
 // so the cache must be populated before any session reads happen.
@@ -50,7 +48,7 @@ const authStorage = {
 };
 
 export const authClient = createAuthClient({
-  baseURL,
+  baseURL: CONVEX_SITE_URL,
   plugins: [convexClient(), crossDomainClient()],
   storage: authStorage,
 });

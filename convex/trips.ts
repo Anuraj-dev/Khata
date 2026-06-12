@@ -30,13 +30,15 @@ export const listTrips = query({
       .query("tripMemberLinks")
       .withIndex("by_viewer", (q) => q.eq("viewerTokenIdentifier", caller))
       .collect();
-    const shared = [];
-    for (const link of links) {
-      const trip = await ctx.db.get(link.tripId);
-      if (!trip) continue;
-      if (status && trip.status !== status) continue;
-      shared.push({ ...trip, role: "viewer" as const, viewerMember: link.member });
-    }
+    const shared = (
+      await Promise.all(
+        links.map(async (link) => {
+          const trip = await ctx.db.get(link.tripId);
+          if (!trip || (status && trip.status !== status)) return null;
+          return { ...trip, role: "viewer" as const, viewerMember: link.member };
+        })
+      )
+    ).filter((trip): trip is NonNullable<typeof trip> => trip !== null);
 
     const ownedTagged = owned.map((t) => ({ ...t, role: "owner" as const, viewerMember: "You" }));
     return [...ownedTagged, ...shared].sort((a, b) => b.createdAt - a.createdAt);
@@ -74,6 +76,57 @@ export const listTripExpenses = query({
       )
       .order("desc")
       .collect();
+  },
+});
+
+// One subscription for the trip screen. This avoids resolving access three
+// times and waiting for three client round trips before any detail can render.
+export const getTripWorkspace = query({
+  args: { tripId: v.id("trips") },
+  handler: async (ctx, { tripId }) => {
+    const caller = await requireTokenIdentifier(ctx);
+    const access = await resolveTripAccess(ctx, tripId, caller);
+    if (!access) return null;
+
+    const [ownerUser, expenses, payments] = await Promise.all([
+      ctx.db
+        .query("users")
+        .withIndex("by_token", (q) =>
+          q.eq("tokenIdentifier", access.trip.ownerTokenIdentifier)
+        )
+        .unique(),
+      ctx.db
+        .query("tripExpenses")
+        .withIndex("by_owner_trip", (q) =>
+          q
+            .eq("ownerTokenIdentifier", access.trip.ownerTokenIdentifier)
+            .eq("tripId", tripId)
+        )
+        .order("desc")
+        .collect(),
+      ctx.db
+        .query("settlements")
+        .withIndex("by_owner_trip", (q) =>
+          q
+            .eq("ownerTokenIdentifier", access.trip.ownerTokenIdentifier)
+            .eq("tripId", tripId)
+        )
+        .collect(),
+    ]);
+
+    const ownerName =
+      ownerUser?.name || ownerUser?.email?.split("@")[0] || "Trip owner";
+
+    return {
+      trip: {
+        ...access.trip,
+        role: access.role,
+        viewerMember: access.viewerMember,
+        ownerName,
+      },
+      expenses,
+      payments,
+    };
   },
 });
 
@@ -132,37 +185,61 @@ export const myTripBalances = query({
     type Row = { tripId: Id<"trips">; name: string; net: number; role: "owner" | "viewer" };
     const out: Row[] = [];
 
-    async function balanceFor(trip: Doc<"trips">, member: string, role: "owner" | "viewer") {
-      const expenses = await ctx.db
-        .query("tripExpenses")
-        .withIndex("by_owner_trip", (q) =>
-          q.eq("ownerTokenIdentifier", trip.ownerTokenIdentifier).eq("tripId", trip._id)
-        )
-        .collect();
-      const payments = await ctx.db
-        .query("settlements")
-        .withIndex("by_owner_trip", (q) =>
-          q.eq("ownerTokenIdentifier", trip.ownerTokenIdentifier).eq("tripId", trip._id)
-        )
-        .collect();
-      out.push({ tripId: trip._id, name: trip.name, net: netForMember(member, trip.members, expenses, payments), role });
+    async function balanceFor(
+      trip: Doc<"trips">,
+      member: string,
+      role: "owner" | "viewer"
+    ): Promise<Row> {
+      const [expenses, payments] = await Promise.all([
+        ctx.db
+          .query("tripExpenses")
+          .withIndex("by_owner_trip", (q) =>
+            q
+              .eq("ownerTokenIdentifier", trip.ownerTokenIdentifier)
+              .eq("tripId", trip._id)
+          )
+          .collect(),
+        ctx.db
+          .query("settlements")
+          .withIndex("by_owner_trip", (q) =>
+            q
+              .eq("ownerTokenIdentifier", trip.ownerTokenIdentifier)
+              .eq("tripId", trip._id)
+          )
+          .collect(),
+      ]);
+      return {
+        tripId: trip._id,
+        name: trip.name,
+        net: netForMember(member, trip.members, expenses, payments),
+        role,
+      };
     }
 
     const owned = await ctx.db
       .query("trips")
       .withIndex("by_owner_status", (q) => q.eq("ownerTokenIdentifier", caller).eq("status", "active"))
       .collect();
-    for (const trip of owned) await balanceFor(trip, SELF, "owner");
-
     const links = await ctx.db
       .query("tripMemberLinks")
       .withIndex("by_viewer", (q) => q.eq("viewerTokenIdentifier", caller))
       .collect();
-    for (const link of links) {
-      const trip = await ctx.db.get(link.tripId);
-      if (!trip || trip.status !== "active") continue;
-      await balanceFor(trip, link.member, "viewer");
-    }
+
+    const shared = (
+      await Promise.all(
+        links.map(async (link) => {
+          const trip = await ctx.db.get(link.tripId);
+          return trip?.status === "active" ? { trip, member: link.member } : null;
+        })
+      )
+    ).filter((row): row is NonNullable<typeof row> => row !== null);
+
+    out.push(
+      ...(await Promise.all([
+        ...owned.map((trip) => balanceFor(trip, SELF, "owner")),
+        ...shared.map(({ trip, member }) => balanceFor(trip, member, "viewer")),
+      ]))
+    );
 
     return out;
   },

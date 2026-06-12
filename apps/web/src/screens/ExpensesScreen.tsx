@@ -42,9 +42,12 @@ function monthTotals(
 }
 
 export function ExpensesScreen({ isAuthenticated, onAddPress, showToast }: Props) {
-  const { sections, isEmpty, todayDebit, todayCredit } = useExpenseList();
+  const { sections, isEmpty, isHydrated, todayDebit, todayCredit } = useExpenseList();
   const [historyLimit, setHistoryLimit] = useState(HISTORY_PAGE);
-  const { recentExpenses } = useExpenseQueries({ isAuthenticated, limit: historyLimit });
+  const { recentExpenses, isRecentLoading } = useExpenseQueries({
+    isAuthenticated,
+    limit: historyLimit,
+  });
   const { resolve } = useCategories();
   const budget = useBudget(isAuthenticated);
   const [budgetSheetOpen, setBudgetSheetOpen] = useState(false);
@@ -74,9 +77,10 @@ export function ExpensesScreen({ isAuthenticated, onAddPress, showToast }: Props
     setPromptDismissed(true);
   }
 
-  // Sync server data into local store when it arrives
+  // Reconcile only after the authenticated query resolves. An empty response is
+  // meaningful too: it must clear stale data from a previous account/session.
   useEffect(() => {
-    if (!recentExpenses.length) return;
+    if (!isAuthenticated || isRecentLoading) return;
     const serverExpenses: LocalExpense[] = recentExpenses.map((e: Doc<"expenses">) => ({
       id: e.clientId,
       amount: e.amount,
@@ -92,10 +96,27 @@ export function ExpensesScreen({ isAuthenticated, onAddPress, showToast }: Props
       syncedId: e._id,
     }));
     expenseStore._syncFromServer(serverExpenses);
-  }, [recentExpenses]);
+  }, [isAuthenticated, isRecentLoading, recentExpenses]);
 
   // Net for the day: what's left after spend vs received. Positive = up, negative = down.
   const todayNet = todayCredit - todayDebit;
+
+  const isExpenseBootstrapPending =
+    !isHydrated ||
+    !isAuthenticated ||
+    isRecentLoading ||
+    recentExpenses.length > 0;
+
+  if (isEmpty && isExpenseBootstrapPending) {
+    return (
+      <div
+        className="flex flex-1 items-center justify-center"
+        style={{ color: "var(--color-text-muted)" }}
+      >
+        <span className="text-sm">Loading expenses…</span>
+      </div>
+    );
+  }
 
   if (isEmpty) {
     return (

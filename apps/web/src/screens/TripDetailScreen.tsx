@@ -16,9 +16,7 @@ export function TripDetailScreen() {
   const navigate = useNavigate();
   const id = tripId as Id<"trips">;
 
-  const trip = useQuery(api.trips.getTrip, { tripId: id });
-  const expenses = useQuery(api.trips.listTripExpenses, { tripId: id });
-  const payments = useQuery(api.settlements.listByTrip, { tripId: id });
+  const workspace = useQuery(api.trips.getTripWorkspace, { tripId: id });
   const recordPayment = useMutation(api.settlements.recordPayment);
   const deletePayment = useMutation(api.settlements.deletePayment);
   const settleTrip = useMutation(api.trips.settleTrip);
@@ -29,14 +27,14 @@ export function TripDetailScreen() {
   const [shareOpen, setShareOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
 
-  if (trip === undefined || expenses === undefined || payments === undefined) {
+  if (workspace === undefined) {
     return (
       <div className="flex flex-1 items-center justify-center" style={{ color: "var(--color-text-muted)" }}>
         <span className="text-sm">Loading…</span>
       </div>
     );
   }
-  if (trip === null) {
+  if (workspace === null) {
     return (
       <div className="flex flex-col flex-1 items-center justify-center gap-3" style={{ color: "var(--color-text-secondary)" }}>
         <p className="text-sm">Trip not found.</p>
@@ -46,6 +44,7 @@ export function TripDetailScreen() {
       </div>
     );
   }
+  const { trip, expenses, payments } = workspace;
 
   const isSettled = trip.status === "settled";
   // Viewers (people the trip was shared with) get a strictly read-only view.

@@ -1,12 +1,10 @@
 import { createAuthClient } from "better-auth/react";
 import type { BetterAuthClientPlugin } from "better-auth";
 import { convexClient, crossDomainClient } from "@convex-dev/better-auth/client/plugins";
-
-const convexUrl = import.meta.env.VITE_CONVEX_URL ?? "";
-const baseURL = convexUrl.replace(".convex.cloud", ".convex.site");
+import { CONVEX_SITE_URL } from "./deployment";
 
 export const authClient = createAuthClient({
-  baseURL,
+  baseURL: CONVEX_SITE_URL,
   plugins: [convexClient(), crossDomainClient() as unknown as BetterAuthClientPlugin],
 });
 

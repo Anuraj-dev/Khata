@@ -23,7 +23,8 @@
 ## Web PWA specifics
 
 - Convex types are imported from `../../convex/_generated/` (relative to `apps/web/`).
-- Env vars are prefixed `VITE_` (e.g. `VITE_CONVEX_URL`).
+- Browser-exposed env vars are prefixed `VITE_`. The Convex development
+  deployment is pinned in `apps/web/src/lib/deployment.ts`.
 - SMS reading is gated behind `Capacitor.isNativePlatform()` — web users log manually. Never show SMS UI on web.
 - Amounts are stored in **paise** (integer) to avoid floating-point errors. Display as ₹ with decimal.
 - `better-auth` session storage uses the browser's default cookie/localStorage — no SecureStore or in-memory hydration needed on web.

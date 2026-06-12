@@ -2,14 +2,9 @@ import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
 import { ConvexReactClient } from "convex/react";
 import type { ReactNode } from "react";
 import { authClient } from "./auth-client";
+import { CONVEX_URL } from "./deployment";
 
-const convexUrl = import.meta.env.VITE_CONVEX_URL;
-
-if (!convexUrl) {
-  throw new Error("Missing VITE_CONVEX_URL — add it to apps/web/.env.local");
-}
-
-const convex = new ConvexReactClient(convexUrl as string, {
+const convex = new ConvexReactClient(CONVEX_URL, {
   expectAuth: true,
 });
 

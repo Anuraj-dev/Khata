@@ -2,14 +2,9 @@ import { ConvexBetterAuthProvider } from "@convex-dev/better-auth/react";
 import { ConvexReactClient } from "convex/react";
 import type { ReactNode } from "react";
 import { authClient } from "./auth-client";
+import { CONVEX_URL } from "./deployment";
 
-const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
-
-if (!convexUrl) {
-  throw new Error("Missing EXPO_PUBLIC_CONVEX_URL in mobile environment");
-}
-
-const convex = new ConvexReactClient(convexUrl, {
+const convex = new ConvexReactClient(CONVEX_URL, {
   expectAuth: true,
 });
 

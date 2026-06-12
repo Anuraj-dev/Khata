@@ -40,7 +40,6 @@ jobs:
       - name: Build web app
         working-directory: apps/web
         env:
-          VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
           # Deployed web origin so in-app trip QR/links resolve cross-device
           # instead of falling back to the WebView's https://localhost origin.
