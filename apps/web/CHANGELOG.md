@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.12.0](https://github.com/Anuraj-dev/Khata/compare/v0.11.0...v0.12.0) (2026-06-12)
+
+
+### Features
+
+* **udhaar:** add one-tap repayment sheet on person detail screen ([8863212](https://github.com/Anuraj-dev/Khata/commit/88632127a1c4b7ea49c649100e44117058335ed0))
+* **udhaar:** add one-tap repayment sheet on person detail screen ([eb3f7f8](https://github.com/Anuraj-dev/Khata/commit/eb3f7f8b0c6c3d2ce76f5fb544cc5d54095f6cc0))
+
+
+### Bug Fixes
+
+* **push:** add channel_id to FCM payload, manifest default, and foreground listener ([cde74d2](https://github.com/Anuraj-dev/Khata/commit/cde74d2915a53665306472b2000ee9f78b5d9712))
+* **push:** add channel_id to FCM payload, manifest default, and foreground listener ([ccfdbe5](https://github.com/Anuraj-dev/Khata/commit/ccfdbe5b88877f54cd67d435daac151e7b129898))
+
 ## [0.11.0](https://github.com/Anuraj-dev/Khata/compare/v0.10.0...v0.11.0) (2026-06-12)
 
 
