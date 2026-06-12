@@ -7,7 +7,10 @@ import { expenseStore } from "../lib/expenseStorage";
 import { clearSmsBackground, peekDeviceSecret } from "../lib/smsBackground";
 import { requireDeviceAuth } from "../lib/deviceAuth";
 import { useCategories } from "../hooks/useCategories";
+import { useBudget } from "../hooks/useBudget";
+import { formatRupees } from "../lib/dates";
 import { AddCategoryForm } from "../components/AddCategoryForm";
+import { SetBudgetSheet } from "../components/SetBudgetSheet";
 import { BUILTIN_CATEGORIES } from "../lib/categories";
 import { Button } from "../components/Button";
 import { PlusIcon } from "../components/icons";
@@ -21,6 +24,8 @@ export function SettingsScreen({ showToast }: Props) {
   const clearAllExpenses = useMutation(api.expenses.clearAll);
   const clearAllTrips = useMutation(api.trips.clearAll);
   const unregisterDevice = useMutation(api.smsIngest.unregisterDevice);
+  const sendTestPush = useMutation(api.pushTokens.sendTest);
+  const [pushBusy, setPushBusy] = useState(false);
   const [expenseBusy, setExpenseBusy] = useState(false);
   const [tripBusy, setTripBusy] = useState(false);
   const [typedExpenseConfirm, setTypedExpenseConfirm] = useState<string | null>(null);
@@ -83,6 +88,22 @@ export function SettingsScreen({ showToast }: Props) {
     }
   }
 
+  async function handleTestPush() {
+    setPushBusy(true);
+    try {
+      const { deviceCount } = await sendTestPush({});
+      showToast(
+        deviceCount === 0
+          ? { kind: "error", message: "No device registered for push. Open the Android app and allow notifications first." }
+          : { kind: "info", message: "Test sent — check your notification tray." }
+      );
+    } catch {
+      showToast({ kind: "error", message: "Couldn't send the test. Try again." });
+    } finally {
+      setPushBusy(false);
+    }
+  }
+
   async function handleSignOut() {
     try {
       // Unbind background SMS ingest first, while we still have a session: drop the
@@ -114,7 +135,18 @@ export function SettingsScreen({ showToast }: Props) {
         </h2>
       </div>
 
+      <BudgetSection showToast={showToast} />
+
       <CategoriesSection />
+
+      <Section title="Notifications">
+        <Row
+          title="Send test notification"
+          subtitle="Verifies push delivery to this account's devices."
+          disabled={pushBusy}
+          onClick={handleTestPush}
+        />
+      </Section>
 
       {/* Danger zone */}
       <Section title="Data">
@@ -162,6 +194,42 @@ export function SettingsScreen({ showToast }: Props) {
         />
       )}
     </div>
+  );
+}
+
+function BudgetSection({ showToast }: Props) {
+  // Settings is only reachable from the signed-in shell.
+  const { status, setBudget, clearBudget } = useBudget(true);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  return (
+    <>
+      <Section title="Budget">
+        <Row
+          title="Monthly budget"
+          subtitle={
+            status
+              ? `${formatRupees(status.monthlyLimit)}/month · plan ${formatRupees(status.dailyPlan)}/day`
+              : "Not set — pick a monthly target and Khata keeps a daily plan."
+          }
+          onClick={() => setSheetOpen(true)}
+        />
+      </Section>
+      <SetBudgetSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        current={status?.monthlyLimit ?? null}
+        spentThisMonth={status?.monthSpent}
+        onSave={async (paise) => {
+          await setBudget({ monthlyLimit: paise });
+          showToast({ kind: "info", message: "Budget saved." });
+        }}
+        onRemove={async () => {
+          await clearBudget({});
+          showToast({ kind: "info", message: "Budget removed." });
+        }}
+      />
+    </>
   );
 }
 

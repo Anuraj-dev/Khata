@@ -112,6 +112,11 @@ export const ingestFromDevice = internalMutation({
         createdAt: now,
         updatedAt: now,
       });
+      if (parsed.direction === "debit") {
+        await ctx.scheduler.runAfter(0, internal.budget.checkAfterExpense, {
+          ownerTokenIdentifier: owner,
+        });
+      }
       return { ok: true as const, action: "logged" as const };
     }
 

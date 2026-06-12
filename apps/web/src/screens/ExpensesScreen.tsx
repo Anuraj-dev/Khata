@@ -1,16 +1,21 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { Doc } from "@convex/_generated/dataModel";
-import { formatRupees } from "../lib/dates";
+import { formatRupees, todayIso } from "../lib/dates";
 import { expenseStore, type LocalExpense } from "../lib/expenseStorage";
 import { useExpenseList } from "../hooks/useExpenseList";
 import { useExpenseQueries } from "../hooks/useExpenseQueries";
 import { useCategories } from "../hooks/useCategories";
+import { useBudget } from "../hooks/useBudget";
 import { ExpenseCard } from "../components/ExpenseCard";
 import { DaySectionHeader } from "../components/DaySectionHeader";
 import { MonthDivider } from "../components/MonthDivider";
 import { EmptyExpenses } from "../components/EmptyExpenses";
 import { ReviewBanner } from "../components/ReviewBanner";
 import { TripsSummary } from "../components/TripsSummary";
+import { BudgetPromptCard } from "../components/BudgetPromptCard";
+import { SetBudgetSheet } from "../components/SetBudgetSheet";
+
+const BUDGET_PROMPT_DISMISSED_KEY = "khata:budgetPromptDismissed";
 
 type Props = {
   isAuthenticated: boolean;
@@ -37,6 +42,32 @@ export function ExpensesScreen({ isAuthenticated, onAddPress }: Props) {
   const { sections, isEmpty, todayDebit, todayCredit } = useExpenseList();
   const { recentExpenses } = useExpenseQueries({ isAuthenticated });
   const { resolve } = useCategories();
+  const budget = useBudget(isAuthenticated);
+  const [budgetSheetOpen, setBudgetSheetOpen] = useState(false);
+  const [promptDismissed, setPromptDismissed] = useState(
+    () => localStorage.getItem(BUDGET_PROMPT_DISMISSED_KEY) === "1"
+  );
+
+  // This month's spend (debits), used both to suggest a starting budget and to
+  // ground the prompt copy. recentExpenses caps at 100 rows, which is plenty at
+  // the stage where the prompt is still showing.
+  const month = todayIso().slice(0, 7);
+  const spentThisMonth = recentExpenses
+    .filter((e) => e.direction === "debit" && e.date.startsWith(month))
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  // Prompt once the user has seen value: ≥10 expenses or ≥3 distinct active days.
+  const distinctDays = new Set(recentExpenses.map((e) => e.date)).size;
+  const promptEligible =
+    !budget.loading &&
+    budget.status === null &&
+    !promptDismissed &&
+    (recentExpenses.length >= 10 || distinctDays >= 3);
+
+  function dismissPrompt() {
+    localStorage.setItem(BUDGET_PROMPT_DISMISSED_KEY, "1");
+    setPromptDismissed(true);
+  }
 
   // Sync server data into local store when it arrives
   useEffect(() => {
@@ -70,13 +101,24 @@ export function ExpensesScreen({ isAuthenticated, onAddPress }: Props) {
     );
   }
 
+  // Safe-to-spend, shown whenever a budget exists (even before the first spend
+  // of the day, so the morning number is visible). Negative = over today's plan.
+  const safeToday = budget.status?.safeToday ?? null;
+  const overPlan = safeToday !== null && safeToday < 0;
+  // Tomorrow's recomputed plan for the warm over-plan one-liner.
+  const daysLeftAfterToday = budget.status ? budget.status.daysRemaining - 1 : 0;
+  const tomorrowPlan =
+    budget.status && daysLeftAfterToday > 0
+      ? Math.max(0, Math.floor((budget.status.monthlyLimit - budget.status.monthSpent) / daysLeftAfterToday))
+      : null;
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <ReviewBanner />
       {/* Today summary bar */}
-      {(todayDebit > 0 || todayCredit > 0) && (
+      {(todayDebit > 0 || todayCredit > 0 || budget.status) && (
         <div
-          className="flex gap-8 px-4 py-3 border-b"
+          className="flex flex-wrap gap-x-6 gap-y-2 px-4 py-3 border-b"
           style={{ borderColor: "var(--color-border-subtle)" }}
         >
           {todayDebit > 0 && (
@@ -132,7 +174,43 @@ export function ExpensesScreen({ isAuthenticated, onAddPress }: Props) {
               </span>
             </div>
           )}
+          {/* Safe-to-spend — the one number that answers "can I afford this". */}
+          {safeToday !== null && (
+            <div className="flex flex-col gap-0.5">
+              <span
+                className="text-xs font-medium uppercase tracking-wider"
+                style={{ color: "var(--color-text-muted)" }}
+              >
+                Left today
+              </span>
+              <span
+                className="text-xl tabular-nums font-medium"
+                style={{
+                  color: overPlan ? "var(--color-debit)" : "var(--color-credit)",
+                  fontFamily: "var(--font-mono)",
+                  letterSpacing: -0.5,
+                }}
+              >
+                {overPlan ? "−" : ""}{formatRupees(Math.abs(safeToday))}
+              </span>
+            </div>
+          )}
+          {/* Warm over-plan note — concrete, never shaming. */}
+          {overPlan && (
+            <p className="w-full text-xs" style={{ color: "var(--color-text-secondary)" }}>
+              {tomorrowPlan !== null
+                ? <>Thoda zyada aaj 😅 — kal se {formatRupees(tomorrowPlan)}/day.</>
+                : <>Thoda zyada aaj 😅 — month ends today, fresh start tomorrow.</>}
+            </p>
+          )}
         </div>
+      )}
+      {promptEligible && (
+        <BudgetPromptCard
+          spentThisMonth={spentThisMonth}
+          onSet={() => setBudgetSheetOpen(true)}
+          onLater={dismissPrompt}
+        />
       )}
       <TripsSummary isAuthenticated={isAuthenticated} />
 
@@ -161,6 +239,17 @@ export function ExpensesScreen({ isAuthenticated, onAddPress }: Props) {
           );
         })}
       </div>
+
+      <SetBudgetSheet
+        open={budgetSheetOpen}
+        onClose={() => setBudgetSheetOpen(false)}
+        current={budget.status?.monthlyLimit ?? null}
+        spentThisMonth={spentThisMonth}
+        onSave={async (paise) => {
+          await budget.setBudget({ monthlyLimit: paise });
+          dismissPrompt();
+        }}
+      />
     </div>
   );
 }

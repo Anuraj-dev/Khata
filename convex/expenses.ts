@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 import { requireTokenIdentifier } from "./authHelpers";
 
 export const listByDate = query({
@@ -55,12 +56,18 @@ export const addExpense = mutation({
   handler: async (ctx, args) => {
     const owner = await requireTokenIdentifier(ctx);
     const now = Date.now();
-    return ctx.db.insert("expenses", {
+    const id = await ctx.db.insert("expenses", {
       ...args,
       ownerTokenIdentifier: owner,
       createdAt: now,
       updatedAt: now,
     });
+    if (args.direction === "debit") {
+      await ctx.scheduler.runAfter(0, internal.budget.checkAfterExpense, {
+        ownerTokenIdentifier: owner,
+      });
+    }
+    return id;
   },
 });
 

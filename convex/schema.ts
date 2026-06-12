@@ -44,6 +44,18 @@ export default defineSchema({
     .index("by_owner", ["ownerTokenIdentifier"])
     .index("by_owner_client_id", ["ownerTokenIdentifier", "clientId"]),
 
+  // One row per user: the monthly spend limit plus alert-dedup state so the
+  // overspend pushes fire at most once per day / once per threshold per month.
+  budgets: defineTable({
+    ownerTokenIdentifier: v.string(),
+    monthlyLimit: v.number(), // paise
+    lastDailyAlertDate: v.optional(v.string()), // yyyy-mm-dd (IST)
+    lastMonthlyAlert80: v.optional(v.string()), // yyyy-mm (IST)
+    lastMonthlyAlert100: v.optional(v.string()), // yyyy-mm (IST)
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_owner", ["ownerTokenIdentifier"]),
+
   trips: defineTable({
     clientId: v.string(),
     name: v.string(),

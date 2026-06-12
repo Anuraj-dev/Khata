@@ -72,13 +72,19 @@ export const autoLog = mutation({
     if (existing) return existing._id;
 
     const now = Date.now();
-    return ctx.db.insert("expenses", {
+    const id = await ctx.db.insert("expenses", {
       ...args,
       source: "sms",
       ownerTokenIdentifier: owner,
       createdAt: now,
       updatedAt: now,
     });
+    if (args.direction === "debit") {
+      await ctx.scheduler.runAfter(0, internal.budget.checkAfterExpense, {
+        ownerTokenIdentifier: owner,
+      });
+    }
+    return id;
   },
 });
 
@@ -101,7 +107,7 @@ export const approve = mutation({
     await ctx.db.patch(queueId, { status: "approved", reviewedAt: Date.now() });
 
     const now = Date.now();
-    return ctx.db.insert("expenses", {
+    const id = await ctx.db.insert("expenses", {
       clientId: `sms-${queueId}`,
       source: "sms",
       note: expenseFields.note,
@@ -115,6 +121,12 @@ export const approve = mutation({
       createdAt: now,
       updatedAt: now,
     });
+    if (expenseFields.direction === "debit") {
+      await ctx.scheduler.runAfter(0, internal.budget.checkAfterExpense, {
+        ownerTokenIdentifier: owner,
+      });
+    }
+    return id;
   },
 });
 

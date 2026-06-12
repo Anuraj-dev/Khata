@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { useCategories } from "../hooks/useCategories";
+import { expenseStore } from "../lib/expenseStorage";
 import { AddCategoryForm } from "./AddCategoryForm";
 
 type Props = {
@@ -11,6 +12,22 @@ export function CategoryPicker({ value, onChange }: Props) {
   const { categories, addCategory } = useCategories();
   const [adding, setAdding] = useState(false);
 
+  // Recently-used categories surface first so the usual pick is one thumb-reach
+  // away. Expenses are newest-first, so the first occurrence of each id is its
+  // recency rank; categories never used keep their original order after them.
+  const expenses = useSyncExternalStore(expenseStore.subscribe, expenseStore.get, expenseStore.get);
+  const ordered = useMemo(() => {
+    const rank = new Map<string, number>();
+    for (const e of expenses) {
+      if (!rank.has(e.category)) rank.set(e.category, rank.size);
+    }
+    return [...categories].sort((a, b) => {
+      const ra = rank.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+      const rb = rank.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+      return ra - rb;
+    });
+  }, [categories, expenses]);
+
   async function handleAdd(label: string, emoji: string) {
     const created = await addCategory(label, emoji);
     if (created) onChange(created.id);
@@ -20,7 +37,7 @@ export function CategoryPicker({ value, onChange }: Props) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-2 px-4 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-        {categories.map((cat) => {
+        {ordered.map((cat) => {
           const active = cat.id === value;
           return (
             <button
