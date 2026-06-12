@@ -4,7 +4,13 @@ import { internal } from "./_generated/api";
 
 async function getAuth(): Promise<{ accessToken: string; projectId: string } | null> {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (!raw) return null;
+  if (!raw) {
+    console.error(
+      "FIREBASE_SERVICE_ACCOUNT is not set on THIS deployment — push notifications are disabled. " +
+        "Paste the Firebase service-account JSON in the deployment's env vars (dashboard → Settings → Environment Variables)."
+    );
+    return null;
+  }
   let sa: { client_email: string; private_key: string; project_id: string };
   try {
     sa = JSON.parse(raw);
