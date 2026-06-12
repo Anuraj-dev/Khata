@@ -158,6 +158,41 @@ export const notifyTripViewers = internalAction({
   },
 });
 
+// Daily 9 PM IST cron: gentle reminder to log cash spends — only for users who
+// logged nothing by hand today (UPI captures itself; cash doesn't).
+export const sendCashNudges = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const auth = await getAuth();
+    if (!auth) return;
+    const today = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const owners = await ctx.runQuery(internal.pushNotifications.getPushTokenOwners, {});
+    for (const owner of owners) {
+      const hasManual = await ctx.runQuery(internal.expenses.hasManualOnDate, {
+        ownerTokenIdentifier: owner,
+        date: today,
+      });
+      if (hasManual) continue;
+      const tokens = await ctx.runQuery(internal.pushNotifications.getTokensForUser, {
+        ownerTokenIdentifier: owner,
+      });
+      await Promise.all(
+        tokens.map((t) =>
+          sendOne(
+            t,
+            auth,
+            {
+              title: "Any cash spends today?",
+              body: "UPI logs itself — cash needs you. 10 seconds to add ✍️",
+            },
+            { type: "cash_nudge" }
+          )
+        )
+      );
+    }
+  },
+});
+
 // Daily cron: remind users of outstanding trip balances.
 export const sendSettlementReminders = internalAction({
   args: {},

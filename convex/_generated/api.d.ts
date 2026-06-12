@@ -25,6 +25,7 @@ import type * as smsQueue from "../smsQueue.js";
 import type * as tripAccess from "../tripAccess.js";
 import type * as tripShares from "../tripShares.js";
 import type * as trips from "../trips.js";
+import type * as udhaar from "../udhaar.js";
 import type * as users from "../users.js";
 
 import type {
@@ -51,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   tripAccess: typeof tripAccess;
   tripShares: typeof tripShares;
   trips: typeof trips;
+  udhaar: typeof udhaar;
   users: typeof users;
 }>;
 

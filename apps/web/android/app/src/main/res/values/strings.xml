@@ -4,4 +4,6 @@
     <string name="title_activity_main">Khata</string>
     <string name="package_name">in.khata.app</string>
     <string name="custom_url_scheme">in.khata.app</string>
+    <string name="shortcut_add_short">Add expense</string>
+    <string name="shortcut_add_long">Log a cash expense</string>
 </resources>

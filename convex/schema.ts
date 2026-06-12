@@ -21,6 +21,10 @@ export default defineSchema({
     direction: v.union(v.literal("debit"), v.literal("credit")),
     upiRef: v.optional(v.string()),
     party: v.optional(v.string()),
+    // Udhaar tag: the free-text person this expense is lent to / borrowed from /
+    // repaid by. Balance per person = Σ tagged debits − Σ tagged credits, so the
+    // expense direction alone carries the meaning — no separate kind needed.
+    udhaarPerson: v.optional(v.string()),
     date: v.string(),
     ownerTokenIdentifier: v.string(),
     createdAt: v.number(),
@@ -28,7 +32,8 @@ export default defineSchema({
   })
     .index("by_owner", ["ownerTokenIdentifier"])
     .index("by_owner_date", ["ownerTokenIdentifier", "date"])
-    .index("by_owner_client_id", ["ownerTokenIdentifier", "clientId"]),
+    .index("by_owner_client_id", ["ownerTokenIdentifier", "clientId"])
+    .index("by_owner_udhaar", ["ownerTokenIdentifier", "udhaarPerson"]),
 
   // User-defined expense categories. Built-in categories live only on the client;
   // this table holds the extras the user adds. `clientId` is a slug derived from

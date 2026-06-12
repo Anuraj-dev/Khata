@@ -284,13 +284,26 @@ Five bugs from device testing, all in one branch:
 - [x] `ExpensesScreen` — "Left today" column in the summary bar (always shown once a budget exists), red when over with a warm one-liner
 - [x] Settings → Budget section (current limit, tap to edit)
 
-### M9: Udhaar ledger (next round)
+### M9: Udhaar ledger ✅
 
-Agreed: tag-an-expense model (no double-count), people = free-text + autocomplete, lent counts as spend, repayment credit tagged to the person restores budget, 4th bottom tab with per-person balances + person history. Expand into micro-steps when M8 ships.
+**Model (locked in grill session):** tag-an-expense — an udhaar is an existing expense (manual or SMS) tagged with a person's name. No separate book, no double-count. Balance(person) = Σ tagged debits − Σ tagged credits; positive = they owe you, negative = you owe them. The direction alone carries the meaning (lend/repay-borrow are debits; get-repaid/borrow are credits), so one field suffices.
 
-### M10: Cash extras (next round)
+**Micro-steps:**
+- [x] `convex/schema.ts` — `expenses.udhaarPerson: v.optional(v.string())` + `by_owner_udhaar` index
+- [x] `convex/udhaar.ts` — `balances` query (per-person net + last activity), `personHistory({person})`, `setTag({expenseId, person|null})`
+- [x] `convex/budget.ts` — budget spend now subtracts udhaar-tagged **credits** (repayment restores safe-to-spend; the lent debit already counted)
+- [x] `lib/expenseStorage.ts` — `udhaarPerson` on `LocalExpense` (+ sanitize + server sync mapping)
+- [x] `components/TagUdhaarSheet.tsx` — tap an expense row → tag/untag with free-text name + autocomplete chips (existing people + SMS party)
+- [x] `ExpenseCard` — tappable; shows a small `🤝 name` badge when tagged
+- [x] `screens/UdhaarScreen.tsx` — per-person balance list (owes you / you owe), settled people hidden, empty state explaining the tag gesture
+- [x] `screens/UdhaarPersonScreen.tsx` — `/udhaar/:person` history + net header
+- [x] `BottomNavBar` — 4th tab: Expenses · Udhaar · Trips · Insights; `App.tsx` routes
 
-Android long-press app shortcut → add drawer; end-of-day "any cash today?" nudge (only when no entry that day); paginated expense history beyond 100 items.
+### M10: Cash extras ✅
+
+- [x] **Android app shortcut** — static shortcut ("Add expense") → `khata://add`; `shortcuts.xml` + manifest meta-data + strings; `AppShell` listens for the deep link (warm + cold start) and opens the add drawer
+- [x] **End-of-day cash nudge** — daily cron 9 PM IST (15:30 UTC): users with push tokens and **no manual entry today** get "spent any cash today?" (warm copy); `expenses.hasManualOnDate` internalQuery + `pushNotifications.sendCashNudges`
+- [x] **Load older history** — the home list caps at 100; add a "Load older" row that raises the `listRecent` limit in +100 steps (10-year durability)
 
 ---
 

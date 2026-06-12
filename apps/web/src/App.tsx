@@ -40,6 +40,12 @@ const SmsQueueScreen = lazy(() =>
 const SettingsScreen = lazy(() =>
   import("./screens/SettingsScreen").then((m) => ({ default: m.SettingsScreen }))
 );
+const UdhaarScreen = lazy(() =>
+  import("./screens/UdhaarScreen").then((m) => ({ default: m.UdhaarScreen }))
+);
+const UdhaarPersonScreen = lazy(() =>
+  import("./screens/UdhaarPersonScreen").then((m) => ({ default: m.UdhaarPersonScreen }))
+);
 import { captureJoinFromUrl, takePendingJoin } from "./lib/joinLink";
 import { useExpenseMutations } from "./hooks/useExpenseMutations";
 import { useRetryQueue } from "./hooks/useRetryQueue";
@@ -82,6 +88,29 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
     if (token && location.pathname !== `/join/${token}`) {
       navigate(`/join/${token}`);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Long-press app-shortcut "Add expense" → khata://add. Covers both a running
+  // app (appUrlOpen) and a cold start (getLaunchUrl fires before any listener).
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    let cleanup: (() => void) | undefined;
+
+    const openAdd = (url: string | undefined) => {
+      if (!url?.startsWith("khata://add")) return;
+      navigate("/");
+      setDrawerOpen(true);
+    };
+
+    void import("@capacitor/app").then(({ App: CapApp }) => {
+      void CapApp.getLaunchUrl().then((launch) => openAdd(launch?.url));
+      void CapApp.addListener("appUrlOpen", ({ url }) => openAdd(url)).then((handle) => {
+        cleanup = () => handle.remove();
+      });
+    });
+
+    return () => cleanup?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -159,9 +188,12 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
                 <ExpensesScreen
                   isAuthenticated={isAuthenticated}
                   onAddPress={() => setDrawerOpen(true)}
+                  showToast={showToast}
                 />
               }
             />
+            <Route path="udhaar" element={<UdhaarScreen />} />
+            <Route path="udhaar/:person" element={<UdhaarPersonScreen />} />
             {/* SMS review queue is native-only; never expose SMS UI on web. */}
             {Capacitor.isNativePlatform() && (
               <Route path="review" element={<SmsQueueScreen />} />
