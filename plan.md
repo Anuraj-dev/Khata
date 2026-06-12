@@ -256,6 +256,42 @@ Five bugs from device testing, all in one branch:
 
 > **Deploy note:** bugs 1 & 3 need `bunx convex deploy` (prod). Bug 3's background path needs a fresh APK (new permission + receiver + plugin method).
 
+### M7: Push notification fix 🔨
+
+**Root cause found (2026-06-12):** `FIREBASE_SERVICE_ACCOUNT` is set only on the **dev** Convex deployment; the phone talks to **prod**, where `getAuth()` returns `null` and every send silently no-ops. No notification has ever been delivered.
+
+- [ ] **Manual (Raja):** paste the Firebase service-account JSON as `FIREBASE_SERVICE_ACCOUNT` in the **prod** deployment env vars (dashboard.convex.dev → prod → Settings → Environment Variables), then `bunx convex deploy`
+- [x] `convex/pushNotifications.ts` — log a loud error when `FIREBASE_SERVICE_ACCOUNT` is missing instead of silently returning
+- [x] `convex/pushTokens.ts` — `sendTest` mutation: returns registered-device count and schedules a test push to self
+- [x] Settings → Notifications section: "Send test notification" row; toast tells you if no device token is registered (client-side failure) vs sent (check tray; if nothing arrives, server env is wrong)
+
+### M8: Monthly budget + safe-to-spend + warm alerts 🔨
+
+**Agreed design (grill session 2026-06-12):**
+- User sets a monthly spend limit (paise). Daily plan = (limit − spent before today) ÷ days remaining incl. today, recomputed live.
+- Spend = **debits only** for now (udhaar repayment offset arrives with M9 tagging).
+- Set-limit prompt appears once the user has ≥10 expenses or ≥3 distinct active days (not time-based), pre-suggesting from real spend; dismissable (localStorage), editable in Settings.
+- Alerts: (1) daily — the debit that pushes today past the daily plan triggers one push (max 1/day, skipped when the month's budget is already blown); (2) monthly — once at 80% and once at 100% per month. Fired server-side from every expense insert path (manual, autoLog, approve, background ingest), so it works with the app closed.
+- Tone: warm, concrete consequences, never shame. Copy personalized dynamically: overage translated into "~N of your usual {top category} spends" using the user's own month data. Light Hinglish OK.
+
+**Micro-steps:**
+- [x] `convex/schema.ts` — `budgets` table (ownerTokenIdentifier, monthlyLimit, lastDailyAlertDate, lastMonthlyAlert80/100) `by_owner`
+- [x] `convex/budget.ts` — `getStatus({today})` query (limit, monthSpent, todaySpent, dailyPlan, safeToday, daysRemaining); `setBudget` / `clearBudget`; `checkAfterExpense` internalMutation (threshold math + dedup guards + personalized copy + schedules push)
+- [x] Wire `checkAfterExpense` into `expenses.addExpense`, `smsQueue.autoLog`, `smsQueue.approve`, `smsIngest.ingestFromDevice` (debits only)
+- [x] `hooks/useBudget.ts` — status query + set/clear mutations
+- [x] `components/SetBudgetSheet.tsx` — amount keypad in a Sheet, spend-so-far suggestion, save / remove
+- [x] `components/BudgetPromptCard.tsx` — "set a target?" card on Expenses screen (eligibility + dismiss)
+- [x] `ExpensesScreen` — "Left today" column in the summary bar (always shown once a budget exists), red when over with a warm one-liner
+- [x] Settings → Budget section (current limit, tap to edit)
+
+### M9: Udhaar ledger (next round)
+
+Agreed: tag-an-expense model (no double-count), people = free-text + autocomplete, lent counts as spend, repayment credit tagged to the person restores budget, 4th bottom tab with per-person balances + person history. Expand into micro-steps when M8 ships.
+
+### M10: Cash extras (next round)
+
+Android long-press app shortcut → add drawer; end-of-day "any cash today?" nudge (only when no entry that day); paginated expense history beyond 100 items.
+
 ---
 
 ## M4: Group Trip Splitter

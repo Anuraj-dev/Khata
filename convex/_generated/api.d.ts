@@ -10,6 +10,7 @@
 
 import type * as auth from "../auth.js";
 import type * as authHelpers from "../authHelpers.js";
+import type * as budget from "../budget.js";
 import type * as categories from "../categories.js";
 import type * as crons from "../crons.js";
 import type * as expenses from "../expenses.js";
@@ -35,6 +36,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   authHelpers: typeof authHelpers;
+  budget: typeof budget;
   categories: typeof categories;
   crons: typeof crons;
   expenses: typeof expenses;
