@@ -98,6 +98,20 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_owner", ["ownerTokenIdentifier"]),
 
+  // Optional per-category spend caps, layered on top of the single monthly
+  // limit. `lastAlertMonth` dedupes the "category cap reached" push to once per
+  // month per category.
+  categoryBudgets: defineTable({
+    ownerTokenIdentifier: v.string(),
+    category: v.string(),
+    monthlyLimit: v.number(), // paise
+    lastAlertMonth: v.optional(v.string()), // yyyy-mm (IST)
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_owner", ["ownerTokenIdentifier"])
+    .index("by_owner_category", ["ownerTokenIdentifier", "category"]),
+
   trips: defineTable({
     clientId: v.string(),
     name: v.string(),

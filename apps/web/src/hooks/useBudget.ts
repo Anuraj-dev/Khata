@@ -21,10 +21,20 @@ export function useBudget(isAuthenticated: boolean) {
   const setBudget = useMutation(api.budget.setBudget);
   const clearBudget = useMutation(api.budget.clearBudget);
 
+  const categoryBudgets = useQuery(
+    api.budget.listCategoryBudgets,
+    isAuthenticated ? { today: todayIso() } : "skip"
+  );
+  const setCategoryBudget = useMutation(api.budget.setCategoryBudget);
+  const clearCategoryBudget = useMutation(api.budget.clearCategoryBudget);
+
   return {
     status: (status ?? null) as BudgetStatus | null,
     loading: status === undefined,
     setBudget,
     clearBudget,
+    categoryBudgets: categoryBudgets ?? [],
+    setCategoryBudget,
+    clearCategoryBudget,
   };
 }

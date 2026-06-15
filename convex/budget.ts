@@ -139,6 +139,85 @@ export const clearBudget = mutation({
   },
 });
 
+async function categoryLabel(ctx: QueryCtx | MutationCtx, owner: string, id: string): Promise<string> {
+  if (BUILTIN_LABELS[id]) return BUILTIN_LABELS[id];
+  if (id === "other") return "Other";
+  const cat = await ctx.db
+    .query("categories")
+    .withIndex("by_owner_client_id", (q) => q.eq("ownerTokenIdentifier", owner).eq("clientId", id))
+    .unique();
+  return cat?.label ?? id;
+}
+
+// Per-category caps + this month's spend in each, for the Settings UI.
+export const listCategoryBudgets = query({
+  args: { today: v.string() },
+  handler: async (ctx, { today }) => {
+    const owner = await requireTokenIdentifier(ctx);
+    const rows = await ctx.db
+      .query("categoryBudgets")
+      .withIndex("by_owner", (q) => q.eq("ownerTokenIdentifier", owner))
+      .collect();
+    if (rows.length === 0) return [];
+    const month = today.slice(0, 7);
+    const monthExpenses = await ctx.db
+      .query("expenses")
+      .withIndex("by_owner_date", (q) =>
+        q.eq("ownerTokenIdentifier", owner).gte("date", `${month}-01`).lte("date", `${month}-31`)
+      )
+      .collect();
+    const spent = new Map<string, number>();
+    for (const e of monthExpenses) {
+      if (e.direction === "debit") spent.set(e.category, (spent.get(e.category) ?? 0) + e.amount);
+    }
+    return rows.map((r) => ({
+      category: r.category,
+      monthlyLimit: r.monthlyLimit,
+      spent: spent.get(r.category) ?? 0,
+    }));
+  },
+});
+
+export const setCategoryBudget = mutation({
+  args: { category: v.string(), monthlyLimit: v.number() },
+  handler: async (ctx, { category, monthlyLimit }) => {
+    if (monthlyLimit <= 0) throw new Error("Limit must be positive");
+    const owner = await requireTokenIdentifier(ctx);
+    const existing = await ctx.db
+      .query("categoryBudgets")
+      .withIndex("by_owner_category", (q) =>
+        q.eq("ownerTokenIdentifier", owner).eq("category", category)
+      )
+      .unique();
+    const now = Date.now();
+    if (existing) {
+      await ctx.db.patch(existing._id, { monthlyLimit, lastAlertMonth: undefined, updatedAt: now });
+      return existing._id;
+    }
+    return ctx.db.insert("categoryBudgets", {
+      ownerTokenIdentifier: owner,
+      category,
+      monthlyLimit,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export const clearCategoryBudget = mutation({
+  args: { category: v.string() },
+  handler: async (ctx, { category }) => {
+    const owner = await requireTokenIdentifier(ctx);
+    const existing = await ctx.db
+      .query("categoryBudgets")
+      .withIndex("by_owner_category", (q) =>
+        q.eq("ownerTokenIdentifier", owner).eq("category", category)
+      )
+      .unique();
+    if (existing) await ctx.db.delete(existing._id);
+  },
+});
+
 // Turns the overage into the user's own spending currency: "~2 Food spends",
 // based on this month's top debit category. Returns "" when there's no good
 // frame (unknown/"other" category, or the overage is smaller than one typical spend).
@@ -228,6 +307,26 @@ export const checkAfterExpense = internalMutation({
           ? `${rupees(over)} over today's plan${consequence}. New plan: ${rupees(newPlan)}/day for the next ${daysLeft} day${daysLeft === 1 ? "" : "s"}.`
           : `${rupees(over)} over today's plan${consequence}. Month ends today — fresh start tomorrow.`;
       await ctx.db.patch(budget._id, { lastDailyAlertDate: today, updatedAt: Date.now() });
+    }
+
+    // Per-category caps — only if no overall-budget alert fired, so a single
+    // expense never triggers two pushes. One category per run, deduped monthly.
+    if (!title) {
+      const catBudgets = await ctx.db
+        .query("categoryBudgets")
+        .withIndex("by_owner", (q) => q.eq("ownerTokenIdentifier", owner))
+        .collect();
+      for (const cb of catBudgets) {
+        if (cb.lastAlertMonth === m.month) continue;
+        const spent = m.byCategory.get(cb.category)?.total ?? 0;
+        if (spent >= cb.monthlyLimit) {
+          const label = await categoryLabel(ctx, owner, cb.category);
+          title = `${label} budget reached`;
+          body = `${rupees(spent)} on ${label} this month — your cap was ${rupees(cb.monthlyLimit)}. Worth a pause? 🙂`;
+          await ctx.db.patch(cb._id, { lastAlertMonth: m.month, updatedAt: Date.now() });
+          break;
+        }
+      }
     }
 
     if (title) {

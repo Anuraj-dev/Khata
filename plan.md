@@ -332,7 +332,8 @@ Five bugs from device testing, all in one branch:
 - [x] **Udhaar frontend polish**: `counterpartyHandle`/`contactId` plumbed into the local model + sync; phone-only handles render as a formatted number (tap → name) instead of "Bank transaction"; one-tap "🤝 Tag as {name}?" suggestion chip under untagged SMS rows whose parsed name fuzzily matches a contact (`suggestByName`).
 - [x] **Trip close**: `trips.settleAll` records the remaining simplified transfers as paid then sets `status: "settled"` (owner-only); `TripDetailScreen` close button is ungated — "Everyone's settled — close trip" — so cash-settled trips can finally close and the daily reminder goes quiet. (+ 2 convex-test cases)
 - [x] **Insights overhaul**: actionable trends (daily avg, projected month-end, month-over-month %); cash-vs-UPI split bar; category **donut** (hand-rolled SVG) with tappable legend → drill-down sheet of that category's transactions; **top merchants** list (tappable → drill-down); 6-month spend **line chart** replacing the bars.
-- [ ] Recurring radar · search/export · per-category budgets.
+- [x] **Per-category budgets**: `categoryBudgets` table; `budget.listCategoryBudgets`/`setCategoryBudget`/`clearCategoryBudget`; `checkAfterExpense` sends a "category cap reached" push (once/month/category, only when no overall-budget alert fired); Settings → "Category caps" UI (progress bars + `CategoryCapSheet`). (+ 2 convex-test cases)
+- [ ] Recurring radar · search/export.
 
 **Parked (appendix A):** collect & repay loop (split-from-SMS, UPI deep-link repay, borrower nudge); reminder cadence/mute; broad perf/pagination audit.
 
