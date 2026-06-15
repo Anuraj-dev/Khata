@@ -21,6 +21,15 @@ export default defineSchema({
     direction: v.union(v.literal("debit"), v.literal("credit")),
     upiRef: v.optional(v.string()),
     party: v.optional(v.string()),
+    // The counterparty's UPI handle, normalized (lowercased VPA, or bare 10-digit
+    // phone). This is the *stable* identity key — unlike `party` (a best-effort,
+    // often-garbled display name), the handle is deterministic to extract. It's
+    // what `contactAliases` are matched on for auto-tagging.
+    counterpartyHandle: v.optional(v.string()),
+    // Resolved contact this expense belongs to. Udhaar balances roll up by
+    // contactId across all of a person's handles; `udhaarPerson` below remains a
+    // denormalized display fallback for rows tagged before contacts existed.
+    contactId: v.optional(v.id("contacts")),
     // Udhaar tag: the free-text person this expense is lent to / borrowed from /
     // repaid by. Balance per person = Σ tagged debits − Σ tagged credits, so the
     // expense direction alone carries the meaning — no separate kind needed.
@@ -33,7 +42,35 @@ export default defineSchema({
     .index("by_owner", ["ownerTokenIdentifier"])
     .index("by_owner_date", ["ownerTokenIdentifier", "date"])
     .index("by_owner_client_id", ["ownerTokenIdentifier", "clientId"])
-    .index("by_owner_udhaar", ["ownerTokenIdentifier", "udhaarPerson"]),
+    .index("by_owner_udhaar", ["ownerTokenIdentifier", "udhaarPerson"])
+    .index("by_owner_contact", ["ownerTokenIdentifier", "contactId"]),
+
+  // A person the user transacts with. Separate from trip members (those stay
+  // free-text strings keyed by the trip-sharing system); contacts and members
+  // only cross-suggest in autocomplete. `isUdhaarTracked` flips true the moment
+  // the user tags any transaction to this contact — that's what makes future
+  // transactions from their handles auto-count in the udhaar ledger.
+  contacts: defineTable({
+    ownerTokenIdentifier: v.string(),
+    name: v.string(),
+    isUdhaarTracked: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_owner", ["ownerTokenIdentifier"]),
+
+  // One row per (contact, identifier). `value` is the *normalized* alias — a
+  // lowercased VPA, a bare 10-digit phone, or a lowercased name-key. Incoming SMS
+  // resolve their handle against `by_owner_value` in O(1); `by_contact` lists a
+  // contact's aliases (for merge / display).
+  contactAliases: defineTable({
+    ownerTokenIdentifier: v.string(),
+    contactId: v.id("contacts"),
+    value: v.string(),
+    kind: v.union(v.literal("vpa"), v.literal("phone"), v.literal("name")),
+    createdAt: v.number(),
+  })
+    .index("by_owner_value", ["ownerTokenIdentifier", "value"])
+    .index("by_contact", ["contactId"]),
 
   // User-defined expense categories. Built-in categories live only on the client;
   // this table holds the extras the user adds. `clientId` is a slug derived from

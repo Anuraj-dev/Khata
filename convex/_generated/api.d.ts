@@ -12,6 +12,7 @@ import type * as auth from "../auth.js";
 import type * as authHelpers from "../authHelpers.js";
 import type * as budget from "../budget.js";
 import type * as categories from "../categories.js";
+import type * as contactMatch from "../contactMatch.js";
 import type * as crons from "../crons.js";
 import type * as expenses from "../expenses.js";
 import type * as http from "../http.js";
@@ -39,6 +40,7 @@ declare const fullApi: ApiFromModules<{
   authHelpers: typeof authHelpers;
   budget: typeof budget;
   categories: typeof categories;
+  contactMatch: typeof contactMatch;
   crons: typeof crons;
   expenses: typeof expenses;
   http: typeof http;
