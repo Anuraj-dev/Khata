@@ -331,7 +331,8 @@ Five bugs from device testing, all in one branch:
 - [x] **Udhaar manual entry + merge UI**: `AddUdhaarSheet` ("+ Add" on the Udhaar screen) logs offline cash lend/borrow from scratch with person autocomplete; `MergeContactsSheet` ("Merge") combines duplicate people via `mergeContacts`.
 - [ ] Udhaar frontend polish (remaining): fuzzy-name suggestion chip on the expense card; phone-only handle display ("tap to name"). (needs home-list `counterpartyHandle` plumbing)
 - [x] **Trip close**: `trips.settleAll` records the remaining simplified transfers as paid then sets `status: "settled"` (owner-only); `TripDetailScreen` close button is ungated — "Everyone's settled — close trip" — so cash-settled trips can finally close and the daily reminder goes quiet. (+ 2 convex-test cases)
-- [ ] Recurring radar · search/export · per-category budgets · insights overhaul.
+- [x] **Insights overhaul**: actionable trends (daily avg, projected month-end, month-over-month %); cash-vs-UPI split bar; category **donut** (hand-rolled SVG) with tappable legend → drill-down sheet of that category's transactions; **top merchants** list (tappable → drill-down); 6-month spend **line chart** replacing the bars.
+- [ ] Recurring radar · search/export · per-category budgets.
 
 **Parked (appendix A):** collect & repay loop (split-from-SMS, UPI deep-link repay, borrower nudge); reminder cadence/mute; broad perf/pagination audit.
 
