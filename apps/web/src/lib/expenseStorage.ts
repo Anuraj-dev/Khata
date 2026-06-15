@@ -17,6 +17,8 @@ export type LocalExpense = {
   direction: ExpenseDirection;
   upiRef?: string;
   party?: string;
+  counterpartyHandle?: string;
+  contactId?: string;
   udhaarPerson?: string;
   date: string;
   createdAt: number;
@@ -52,6 +54,8 @@ function sanitize(value: unknown): LocalExpense[] {
       direction: e.direction as ExpenseDirection,
       upiRef: typeof e.upiRef === "string" ? e.upiRef : undefined,
       party: typeof e.party === "string" ? e.party : undefined,
+      counterpartyHandle: typeof e.counterpartyHandle === "string" ? e.counterpartyHandle : undefined,
+      contactId: typeof e.contactId === "string" ? e.contactId : undefined,
       udhaarPerson: typeof e.udhaarPerson === "string" ? e.udhaarPerson : undefined,
       date: typeof e.date === "string" ? e.date : todayIso(),
       createdAt: typeof e.createdAt === "number" ? e.createdAt : Date.now(),
