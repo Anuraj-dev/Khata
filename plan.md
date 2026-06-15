@@ -326,8 +326,9 @@ Five bugs from device testing, all in one branch:
 
 **Progress:**
 - [x] **Foundation slice** (branch `feat/m11-contacts-foundation`): schema `contacts` + `contactAliases` + `expenses.counterpartyHandle`/`contactId` (+ `by_owner_contact` index); `smsParser` now returns a stable `handle` and cleans display names (rejects hex/ref blobs, strips digit tails, no 40-char truncation, phone-VPA → handle without a fake name); pure `convex/contactMatch.ts` (`normalizeHandle`/`normalizeName`/`resolveByHandle`/`suggestByName`); vitest wired (`bun run test`) with 22 passing pure tests (Seam 1).
-- [ ] Auto-capture wiring: populate `counterpartyHandle` on every insert path; resolve known handle → `contactId`; exact-name auto-link + learn alias; fuzzy-name suggestion chip. (+ convex-test, Seam 2)
-- [ ] Udhaar roll-up by `contactId`; `recordManual`; contact merge/rename; backfill migration.
+- [x] **Auto-capture wiring** (branch `feat/m11-contacts-foundation`): `counterpartyHandle` captured on every insert path (`ingestFromDevice`, `autoLog`, `approve` + poller threads `parsedHandle`); known handle → `contactId`; exact-name auto-link + learn the new handle. `contactsHelpers.resolveForIngest`/`tagExpenseToPerson`. (+ 5 convex-test cases, Seam 2)
+- [x] **Udhaar roll-up + contacts CRUD**: roll-up via canonical `udhaarPerson` (existing name-keyed screens work unchanged) + `contactId` surfaced; `setTag`/`addRepayment` build the contact graph; `contacts.ts` (`listContacts`/`createContact`/`renameContact`/`mergeContacts`/`backfillContacts`).
+- [ ] Udhaar frontend polish: fuzzy-name suggestion chip on the expense card; "+ add manual udhaar" entry from scratch; merge UI; phone-only handle display ("tap to name").
 - [ ] Trip `settleAll` + "Everyone's settled" UI.
 - [ ] Recurring radar · search/export · per-category budgets · insights overhaul.
 

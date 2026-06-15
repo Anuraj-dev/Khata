@@ -34,6 +34,7 @@ export type ParsedSmsMessage = {
   rawSms: string;
   parsedAmount?: number;
   parsedParty?: string;
+  parsedHandle?: string;
   parsedDirection?: "debit" | "credit";
   parsedUpiRef?: string;
   parsedDate?: string;
@@ -70,6 +71,7 @@ export async function pollForUpiSms(afterTimestamp: number): Promise<ParsedSmsMe
         rawSms: m.body,
         parsedAmount: parsed?.amount,
         parsedParty: parsed?.party,
+        parsedHandle: parsed?.handle,
         parsedDirection: parsed?.direction,
         parsedUpiRef: parsed?.upiRef,
         parsedDate: date,
