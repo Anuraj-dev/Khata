@@ -13,6 +13,7 @@
 | M3 | UPI SMS via Capacitor wrapper | ✅ Done |
 | M4 | Group Trip Splitter | ⏳ Pending |
 | M5 | Insights & Polish | ⏳ Pending |
+| M11 | Contacts + aliases, SMS/udhaar fixes, trip close, recurring/search/budget/insights | 📋 PRD ready |
 
 > **Pivot note:** `apps/mobile/` is abandoned due to Expo dev-client USB debugging errors and Android Studio unavailability. All new work targets `apps/web/` (Vite + React PWA). The Convex backend is unchanged. UPI SMS (M3) will use a thin Capacitor wrapper around the same web app.
 
@@ -304,6 +305,33 @@ Five bugs from device testing, all in one branch:
 - [x] **Android app shortcut** — static shortcut ("Add expense") → `khata://add`; `shortcuts.xml` + manifest meta-data + strings; `AppShell` listens for the deep link (warm + cold start) and opens the add drawer
 - [x] **End-of-day cash nudge** — daily cron 9 PM IST (15:30 UTC): users with push tokens and **no manual entry today** get "spent any cash today?" (warm copy); `expenses.hasManualOnDate` internalQuery + `pushNotifications.sendCashNudges`
 - [x] **Load older history** — the home list caps at 100; add a "Load older" row that raises the `listRecent` limit in +100 steps (10-year durability)
+
+---
+
+## M11: Contacts + aliases, SMS/udhaar fixes, trip close, follow-on features 📋
+
+**PRD:** [`docs/prd/udhaar-contacts-and-fixes.md`](docs/prd/udhaar-contacts-and-fixes.md) — full problem statement, user stories, implementation + testing decisions. Synthesised from the grill/PRD session on 2026-06-15.
+
+**Scope (agreed):**
+- **SMS parsing fix** — capture + store the full UPI handle (VPA/phone) separately from a best-effort display name; reject ref-hashes / trailing-digit garbage; fix 40-char merchant truncation; friendly placeholder for phone-only handles.
+- **Contacts + learned aliases** — new `contacts` + `contactAliases` tables (separate from trip members, cross-suggesting). Aliases keyed on the normalized handle; matching never depends on good name parsing.
+- **Udhaar auto-capture + roll-up** — known handle → silent auto-tag (undo); exact name → auto-link + learn handle; fuzzy name → one-tap chip; phone-VPA credits prioritised. Balance rolls up by contact across all handles. **Manual cash udhaar entry/repay** (generalise `addRepayment` → `recordManual`). Contact merge/rename. One-off backfill migration.
+- **Trip close** — `settleAll` mutation + "Everyone's settled — close trip" one-tap (bulk-records remaining transfers → net ₹0 → `settled` → cron quiet). Daily cron/threshold unchanged.
+- **Recurring & bills radar (B)** — detect monthly billers, confirm once, remind before due, "upcoming this week" card.
+- **Find & report (C)** — paginated `expenses.search`; monthly CSV + shareable summary image.
+- **Money controls (D)** — per-category budgets (reuse alert plumbing); cash-in-hand wallet *(defer candidate)*.
+- **Insights overhaul** — MoM comparison, daily-avg, projected month-end; top merchants + drill-down; hand-rolled SVG donut/line + cash/UPI split.
+
+**Testing:** introduce **vitest** (two seams) — pure functions (`smsParser`, `contactMatch`, `tripBalances`) + `convex-test` for DB behaviours (udhaar roll-up, auto-tag, `settleAll`, recurring detect, per-category budget, search).
+
+**Progress:**
+- [x] **Foundation slice** (branch `feat/m11-contacts-foundation`): schema `contacts` + `contactAliases` + `expenses.counterpartyHandle`/`contactId` (+ `by_owner_contact` index); `smsParser` now returns a stable `handle` and cleans display names (rejects hex/ref blobs, strips digit tails, no 40-char truncation, phone-VPA → handle without a fake name); pure `convex/contactMatch.ts` (`normalizeHandle`/`normalizeName`/`resolveByHandle`/`suggestByName`); vitest wired (`bun run test`) with 22 passing pure tests (Seam 1).
+- [ ] Auto-capture wiring: populate `counterpartyHandle` on every insert path; resolve known handle → `contactId`; exact-name auto-link + learn alias; fuzzy-name suggestion chip. (+ convex-test, Seam 2)
+- [ ] Udhaar roll-up by `contactId`; `recordManual`; contact merge/rename; backfill migration.
+- [ ] Trip `settleAll` + "Everyone's settled" UI.
+- [ ] Recurring radar · search/export · per-category budgets · insights overhaul.
+
+**Parked (appendix A):** collect & repay loop (split-from-SMS, UPI deep-link repay, borrower nudge); reminder cadence/mute; broad perf/pagination audit.
 
 ---
 
