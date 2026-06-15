@@ -19,7 +19,7 @@ export function TripDetailScreen() {
   const workspace = useQuery(api.trips.getTripWorkspace, { tripId: id });
   const recordPayment = useMutation(api.settlements.recordPayment);
   const deletePayment = useMutation(api.settlements.deletePayment);
-  const settleTrip = useMutation(api.trips.settleTrip);
+  const settleAll = useMutation(api.trips.settleAll);
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Doc<"tripExpenses"> | null>(null);
@@ -96,6 +96,19 @@ export function TripDetailScreen() {
     setBusy(true);
     try {
       await recordPayment({ tripId: id, fromMember: from, toMember: to, amount });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // One-tap close: records the remaining suggested transfers as paid (e.g. cash)
+  // and marks the trip settled. For a trip already squared up in-app it just
+  // closes (no transfers left to record).
+  async function closeTrip() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      await settleAll({ tripId: id });
     } finally {
       setBusy(false);
     }
@@ -277,14 +290,16 @@ export function TripDetailScreen() {
           <Button
             variant="secondary"
             fullWidth
-            disabled={!canClose}
-            onClick={() => canClose && void settleTrip({ tripId: id })}
+            loading={busy}
+            disabled={busy}
+            onClick={() => void closeTrip()}
           >
-            Mark settled &amp; close
+            {canClose ? "Mark settled & close" : "Everyone's settled — close trip"}
           </Button>
           {!canClose && (
             <p className="text-xs text-center" style={{ color: "var(--color-text-muted)" }}>
-              Tick everyone as paid in “Settle up” before closing.
+              Records the remaining {transfers.length} transfer{transfers.length > 1 ? "s" : ""} as
+              paid (e.g. in cash) and closes the trip.
             </p>
           )}
         </div>

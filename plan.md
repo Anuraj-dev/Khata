@@ -329,7 +329,7 @@ Five bugs from device testing, all in one branch:
 - [x] **Auto-capture wiring** (branch `feat/m11-contacts-foundation`): `counterpartyHandle` captured on every insert path (`ingestFromDevice`, `autoLog`, `approve` + poller threads `parsedHandle`); known handle → `contactId`; exact-name auto-link + learn the new handle. `contactsHelpers.resolveForIngest`/`tagExpenseToPerson`. (+ 5 convex-test cases, Seam 2)
 - [x] **Udhaar roll-up + contacts CRUD**: roll-up via canonical `udhaarPerson` (existing name-keyed screens work unchanged) + `contactId` surfaced; `setTag`/`addRepayment` build the contact graph; `contacts.ts` (`listContacts`/`createContact`/`renameContact`/`mergeContacts`/`backfillContacts`).
 - [ ] Udhaar frontend polish: fuzzy-name suggestion chip on the expense card; "+ add manual udhaar" entry from scratch; merge UI; phone-only handle display ("tap to name").
-- [ ] Trip `settleAll` + "Everyone's settled" UI.
+- [x] **Trip close**: `trips.settleAll` records the remaining simplified transfers as paid then sets `status: "settled"` (owner-only); `TripDetailScreen` close button is ungated — "Everyone's settled — close trip" — so cash-settled trips can finally close and the daily reminder goes quiet. (+ 2 convex-test cases)
 - [ ] Recurring radar · search/export · per-category budgets · insights overhaul.
 
 **Parked (appendix A):** collect & repay loop (split-from-SMS, UPI deep-link repay, borrower nudge); reminder cadence/mute; broad perf/pagination audit.

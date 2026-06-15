@@ -133,16 +133,24 @@ export const getTripWorkspace = query({
 // The owner's own slot inside a trip is the member literally named "You".
 const SELF = "You";
 
-// Net position for one member across a trip's expenses + recorded payments.
+type ExpenseLite = {
+  paidBy: string;
+  amount: number;
+  splitAmong: string[];
+  splitMode?: string;
+  shares?: { member: string; amount: number }[];
+};
+type PaymentLite = { fromMember: string; toMember: string; amount: number };
+
+// Net position per member across a trip's expenses + recorded payments.
 // Positive = they are owed money, negative = they owe. Mirrors the client-side
 // math in apps/web/src/lib/tripBalances.ts (kept in sync by hand — Convex runs
 // in a separate bundle and can't import the web lib).
-function netForMember(
-  member: string,
+function computeNets(
   members: string[],
-  expenses: { paidBy: string; amount: number; splitAmong: string[]; splitMode?: string; shares?: { member: string; amount: number }[] }[],
-  payments: { fromMember: string; toMember: string; amount: number }[]
-): number {
+  expenses: ExpenseLite[],
+  payments: PaymentLite[]
+): Record<string, number> {
   const net: Record<string, number> = {};
   for (const m of members) net[m] = 0;
 
@@ -171,7 +179,43 @@ function netForMember(
     net[p.toMember] = (net[p.toMember] ?? 0) - p.amount;
   }
 
-  return net[member] ?? 0;
+  return net;
+}
+
+function netForMember(
+  member: string,
+  members: string[],
+  expenses: ExpenseLite[],
+  payments: PaymentLite[]
+): number {
+  return computeNets(members, expenses, payments)[member] ?? 0;
+}
+
+// Greedy minimum-cash-flow: who pays whom to settle up. Mirror of `simplifyDebts`
+// in the web lib; dust under ₹1 from rounding is ignored.
+function simplifyDebts(net: Record<string, number>): { from: string; to: string; amount: number }[] {
+  const EPS = 100;
+  const creditors = Object.entries(net)
+    .filter(([, v]) => v > EPS)
+    .map(([m, v]) => ({ m, v }))
+    .sort((a, b) => b.v - a.v);
+  const debtors = Object.entries(net)
+    .filter(([, v]) => v < -EPS)
+    .map(([m, v]) => ({ m, v: -v }))
+    .sort((a, b) => b.v - a.v);
+
+  const result: { from: string; to: string; amount: number }[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < debtors.length && j < creditors.length) {
+    const pay = Math.min(debtors[i].v, creditors[j].v);
+    result.push({ from: debtors[i].m, to: creditors[j].m, amount: pay });
+    debtors[i].v -= pay;
+    creditors[j].v -= pay;
+    if (debtors[i].v <= EPS) i++;
+    if (creditors[j].v <= EPS) j++;
+  }
+  return result;
 }
 
 // Home-screen summary: for each active trip — owned or shared to you — how much
@@ -407,6 +451,49 @@ export const settleTrip = mutation({
     const trip = await ctx.db.get(tripId);
     if (!trip || trip.ownerTokenIdentifier !== owner) throw new Error("Not found");
     await ctx.db.patch(tripId, { status: "settled", updatedAt: Date.now() });
+  },
+});
+
+// "Everyone's settled" — records the remaining suggested transfers as real
+// payments (so balances drop to ~₹0) and closes the trip in one tap. For trips
+// squared up in cash that the per-transfer flow could never close. Owner only.
+export const settleAll = mutation({
+  args: { tripId: v.id("trips") },
+  handler: async (ctx, { tripId }) => {
+    const owner = await requireTokenIdentifier(ctx);
+    const trip = await ctx.db.get(tripId);
+    if (!trip || trip.ownerTokenIdentifier !== owner) throw new Error("Not found");
+
+    const [expenses, payments] = await Promise.all([
+      ctx.db
+        .query("tripExpenses")
+        .withIndex("by_owner_trip", (q) =>
+          q.eq("ownerTokenIdentifier", owner).eq("tripId", tripId)
+        )
+        .collect(),
+      ctx.db
+        .query("settlements")
+        .withIndex("by_owner_trip", (q) =>
+          q.eq("ownerTokenIdentifier", owner).eq("tripId", tripId)
+        )
+        .collect(),
+    ]);
+
+    const transfers = simplifyDebts(computeNets(trip.members, expenses, payments));
+    const now = Date.now();
+    for (const tr of transfers) {
+      await ctx.db.insert("settlements", {
+        tripId,
+        fromMember: tr.from,
+        toMember: tr.to,
+        amount: tr.amount,
+        settledAt: now,
+        ownerTokenIdentifier: owner,
+        createdAt: now,
+      });
+    }
+    await ctx.db.patch(tripId, { status: "settled", updatedAt: now });
+    return { recorded: transfers.length };
   },
 });
 
