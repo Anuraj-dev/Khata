@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { Capacitor } from "@capacitor/core";
 import { api } from "@convex/_generated/api";
 import { MailIcon, ChevronRight } from "./icons";
@@ -9,8 +9,9 @@ import { MailIcon, ChevronRight } from "./icons";
 // instead of a permanent nav tab. Native-only; web users never have SMS.
 export function ReviewBanner() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useConvexAuth();
   const isNative = Capacitor.isNativePlatform();
-  const pending = useQuery(api.smsQueue.listPending, isNative ? {} : "skip");
+  const pending = useQuery(api.smsQueue.listPending, isNative && isAuthenticated ? {} : "skip");
   const count = pending?.length ?? 0;
 
   if (!isNative || count === 0) return null;

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { useNavigate } from "react-router";
 import { api } from "@convex/_generated/api";
 import { formatRupees } from "../lib/dates";
@@ -11,7 +11,8 @@ import { PlusIcon } from "../components/icons";
 // udhaar-tagged expenses — there is no separate book to keep in sync.
 export function UdhaarScreen() {
   const navigate = useNavigate();
-  const balances = useQuery(api.udhaar.balances);
+  const { isAuthenticated } = useConvexAuth();
+  const balances = useQuery(api.udhaar.balances, isAuthenticated ? {} : "skip");
   const [addOpen, setAddOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
   const [toast, setToast] = useState<{ kind: "error" | "info"; message: string } | null>(null);

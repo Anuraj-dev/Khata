@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Doc } from "@convex/_generated/dataModel";
 import { formatRupees, toIsoDate } from "../lib/dates";
@@ -22,11 +22,15 @@ export function InsightsScreen() {
   const now = new Date();
   const [offset, setOffset] = useState(0); // 0 = current month, negative = older
   const [drill, setDrill] = useState<Drill>(null);
+  const { isAuthenticated } = useConvexAuth();
   const { resolve } = useCategories();
 
   const windowStart = toIsoDate(new Date(now.getFullYear(), now.getMonth() - (MONTHS_BACK - 1), 1));
   const windowEnd = toIsoDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
-  const expenses = useQuery(api.expenses.listRange, { start: windowStart, end: windowEnd });
+  const expenses = useQuery(
+    api.expenses.listRange,
+    isAuthenticated ? { start: windowStart, end: windowEnd } : "skip"
+  );
 
   const buckets = useMemo(() => {
     const list: { key: string; year: number; month0: number; debit: number; credit: number }[] = [];
