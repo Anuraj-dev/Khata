@@ -23,8 +23,6 @@ where the money actually goes — all in an installable PWA.
 
 ## 📱 Screenshots
 
-> Placeholders for now — drop real images into [`docs/screenshots/`](docs/screenshots/)
-> and swap the `src` (each image notes its intended local path).
 
 <table>
   <tr>
