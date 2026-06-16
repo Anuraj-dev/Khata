@@ -1,24 +1,54 @@
 import { RefreshControl, SectionList, StyleSheet, Text, View } from "react-native";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type { Doc } from "../../../../convex/_generated/dataModel";
 import { colors, fonts, spacing } from "../theme/tokens";
 import { formatRupees } from "../lib/dates";
 import { useExpenseList } from "../hooks/useExpenseList";
+import { useExpenseQueries } from "../hooks/useExpenseQueries";
 import { ExpenseCard } from "../components/ExpenseCard";
 import { DaySectionHeader } from "../components/DaySectionHeader";
 import { EmptyExpenses } from "../components/EmptyExpenses";
-import type { LocalExpense } from "../lib/expenseStorage";
+import { expenseStore, type LocalExpense } from "../lib/expenseStorage";
 
 type Props = {
+  isAuthenticated: boolean;
   onAddPress?: () => void;
 };
 
-export function ExpensesScreen({ onAddPress }: Props) {
-  const { sections, isEmpty, todayDebit, todayCredit } = useExpenseList();
+export function ExpensesScreen({ isAuthenticated, onAddPress }: Props) {
+  const { sections, isEmpty, isHydrated, todayDebit, todayCredit } = useExpenseList();
+  const { recentExpenses, isRecentLoading } = useExpenseQueries({ isAuthenticated });
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated || isRecentLoading) return;
+    const serverExpenses: LocalExpense[] = recentExpenses.map((expense: Doc<"expenses">) => ({
+      id: expense.clientId,
+      amount: expense.amount,
+      note: expense.note,
+      category: expense.category as LocalExpense["category"],
+      source: expense.source,
+      direction: expense.direction,
+      upiRef: expense.upiRef,
+      party: expense.party,
+      date: expense.date,
+      createdAt: expense._creationTime,
+      syncedId: expense._id,
+    }));
+    expenseStore._syncFromServer(serverExpenses);
+  }, [isAuthenticated, isRecentLoading, recentExpenses]);
 
   function handleRefresh() {
     setRefreshing(true);
     setTimeout(() => setRefreshing(false), 800);
+  }
+
+  if (isEmpty && (!isHydrated || (isAuthenticated && isRecentLoading))) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading expenses...</Text>
+      </View>
+    );
   }
 
   if (isEmpty) {
@@ -77,6 +107,8 @@ export function ExpensesScreen({ onAddPress }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  loadingContainer: { flex: 1, alignItems: "center", justifyContent: "center" },
+  loadingText: { fontFamily: fonts.sansMedium, fontSize: 14, color: colors.textMuted },
   summaryBar: {
     flexDirection: "row",
     paddingHorizontal: spacing.lg,
