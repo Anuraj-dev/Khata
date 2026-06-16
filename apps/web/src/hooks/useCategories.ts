@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import {
@@ -14,7 +14,8 @@ import {
 // add/delete plus an id→metadata resolver. Convex dedupes the underlying query,
 // so it's cheap to call from multiple components.
 export function useCategories() {
-  const customDocs = useQuery(api.categories.listCategories);
+  const { isAuthenticated } = useConvexAuth();
+  const customDocs = useQuery(api.categories.listCategories, isAuthenticated ? {} : "skip");
   const addMut = useMutation(api.categories.addCategory);
   const deleteMut = useMutation(api.categories.deleteCategory);
 
