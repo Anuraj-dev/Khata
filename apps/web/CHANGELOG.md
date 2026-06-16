@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.2](https://github.com/Anuraj-dev/Khata/compare/v0.13.1...v0.13.2) (2026-06-16)
+
+
+### Bug Fixes
+
+* **auth:** skip Convex queries while auth session is loading ([e7928f9](https://github.com/Anuraj-dev/Khata/commit/e7928f99af7b5507b16ef53e670b831f427cbe7f))
+* **auth:** skip Convex queries while auth session is loading ([0669b99](https://github.com/Anuraj-dev/Khata/commit/0669b990d23058f67e6874056b375fcdef0bc2fd))
+
 ## [0.13.1](https://github.com/Anuraj-dev/Khata/compare/v0.13.0...v0.13.1) (2026-06-16)
 
 
