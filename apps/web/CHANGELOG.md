@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.3](https://github.com/Anuraj-dev/Khata/compare/v0.13.2...v0.13.3) (2026-06-16)
+
+
+### Bug Fixes
+
+* offline-first APK — live URL, auth gate, and write queue sync ([0533790](https://github.com/Anuraj-dev/Khata/commit/05337904ba30c640e8f1ad366b940818c35d333a))
+* **offline:** wire retry queue and auto-sync on reconnect ([1532e9b](https://github.com/Anuraj-dev/Khata/commit/1532e9bae06cedc4ef971f455d43ffb3f1a39032))
+
 ## [0.13.2](https://github.com/Anuraj-dev/Khata/compare/v0.13.1...v0.13.2) (2026-06-16)
 
 
