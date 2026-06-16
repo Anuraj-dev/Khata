@@ -5,6 +5,9 @@ const config: CapacitorConfig = {
   appName: "Khata",
   webDir: "dist",
   server: {
+    // WebView loads the live deployed URL instead of bundled assets.
+    // Every Vercel deploy is instantly live in the app — no APK rebuild needed.
+    url: "https://khata.raja-dev.me",
     androidScheme: "https",
   },
   android: {

@@ -241,14 +241,18 @@ function AuthGate({ children }: { children: (isAuthenticated: boolean) => React.
   // Persist the resolved state for the next cold start.
   useEffect(() => {
     if (isLoading) return;
-    if (isAuthenticated) localStorage.setItem(WAS_AUTHED_KEY, "1");
-    else localStorage.removeItem(WAS_AUTHED_KEY);
+    if (isAuthenticated) {
+      localStorage.setItem(WAS_AUTHED_KEY, "1");
+    } else if (navigator.onLine) {
+      // Only evict the flag when online and confirmed logged out. Offline,
+      // Convex resolves as unauthenticated — don't sign the user out for that.
+      localStorage.removeItem(WAS_AUTHED_KEY);
+    }
   }, [isLoading, isAuthenticated]);
 
-  if (isLoading) {
-    // Returning user: render the shell against the local cache right away. The
-    // expense list hydrates from localStorage, and queries no-op (isAuthenticated
-    // false) until the session lands, then flip on without a remount.
+  // While auth is resolving, or when offline with a prior session, show the
+  // cached shell. Convex queries will be empty but the UI stays usable.
+  if (isLoading || (wasAuthed && !navigator.onLine)) {
     if (wasAuthed) return <>{children(false)}</>;
     return <BootScreen />;
   }
