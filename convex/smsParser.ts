@@ -11,7 +11,8 @@ export type Category = "food" | "travel" | "shopping" | "bills" | "health" | "ot
 export type ParsedSms = {
   amount: number;
   direction: "debit" | "credit";
-  party?: string;
+  party?: string; // best-effort display name; may be absent for phone-only handles
+  handle?: string; // raw UPI handle (full VPA, lowercased) — the stable identity key
   upiRef?: string;
   date?: string; // ISO yyyy-mm-dd, when a date is present in the message body
 };
@@ -30,7 +31,9 @@ function vpaRe(prep: string) {
   return new RegExp(`(?:${prep})\\s+(?:vpa\\s+)?([a-z0-9._\\-]+@[a-z]{2,})`, "i");
 }
 function nameRe(prep: string) {
-  return new RegExp(`(?:${prep})\\s+(?:vpa\\s+)?([A-Za-z][A-Za-z0-9 .&'\\-]{1,40}?)${partyTerminator}`, "i");
+  // Cap raised to 60 so longer merchant names (e.g. "Isthara Parks Private
+  // Limited") aren't truncated mid-word.
+  return new RegExp(`(?:${prep})\\s+(?:vpa\\s+)?([A-Za-z][A-Za-z0-9 .&'\\-]{1,60}?)${partyTerminator}`, "i");
 }
 
 const NUMERIC_DATE_RE = /\b(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})\b/;
@@ -99,11 +102,11 @@ export function parseSms(sms: string): ParsedSms | null {
   const refMatch = UPI_REF_RE.exec(text);
   const upiRef = refMatch?.[1];
 
-  const party = extractParty(text, direction);
+  const { handle, name } = extractCounterparty(text, direction);
 
   const date = parseSmsDate(text);
 
-  return { amount, direction, party, upiRef, date };
+  return { amount, direction, party: name, handle, upiRef, date };
 }
 
 function parseAmount(match: RegExpMatchArray): number {
@@ -111,24 +114,52 @@ function parseAmount(match: RegExpMatchArray): number {
   return Math.round(parseFloat(raw) * 100);
 }
 
-function extractParty(text: string, direction: "debit" | "credit"): string | undefined {
+// Pull both the raw UPI handle (the stable key) and a best-effort display name
+// out of the message. The handle is only present when the SMS carries a VPA; a
+// phone-number VPA (9706312331@ybl) yields a handle but no name (the display
+// falls back to a formatted phone / "tap to name" on the client).
+function extractCounterparty(
+  text: string,
+  direction: "debit" | "credit"
+): { handle?: string; name?: string } {
   const prep = direction === "credit" ? CREDIT_PREP : DEBIT_PREP;
   const vpa = vpaRe(prep).exec(text);
-  if (vpa) return cleanPartyName(vpa[1]);
+  if (vpa) {
+    const handle = vpa[1].toLowerCase();
+    const local = handle.slice(0, handle.indexOf("@"));
+    // Derive a name from the local part only when it's name-like (has letters),
+    // never from a pure phone-number handle.
+    const name = /[a-z]/.test(local) ? cleanPartyName(local) : undefined;
+    return { handle, name };
+  }
   const name = nameRe(prep).exec(text);
-  if (name) return cleanPartyName(name[1]);
-  return undefined;
+  if (name) return { name: cleanPartyName(name[1]) };
+  return {};
 }
 
 export function cleanPartyName(raw: string): string | undefined {
   let s = raw.trim();
   const at = s.indexOf("@");
   if (at > 0) s = s.slice(0, at);
+  // Reject UPI transaction-id / hex-ref blobs outright (e.g.
+  // "F4959ebdcb2b4703976100b5a8f697a9") — these are never names.
+  const compact = s.replace(/[\s._-]/g, "");
+  if (/^[0-9a-f]{12,}$/i.test(compact)) return undefined;
   s = s.replace(/[._\-]+/g, " ").replace(/\s+/g, " ").trim();
   if (!s) return undefined;
-  const words = s.split(" ");
+  // Strip digits glued to the end of a word ("Kumars96417" -> "Kumars",
+  // "Vaibhav138" -> "Vaibhav") and drop standalone numeric ref tails ("138",
+  // "1", "2"). Keep only tokens that still hold a letter.
+  const words = s
+    .split(" ")
+    .map((w) => w.replace(/\d+$/, ""))
+    .filter((w) => w.length > 0 && /[a-z]/i.test(w));
+  if (words.length === 0) return undefined;
+  const cleaned = words.join(" ");
+  // Whatever's left is too short to be a real name (e.g. "Nd" from "Nd3879297").
+  if (cleaned.length <= 2) return undefined;
   const titleCase = (w: string) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
-  if (words.length > 1 && s === s.toUpperCase()) {
+  if (words.length > 1 && cleaned === cleaned.toUpperCase()) {
     return words.map(titleCase).join(" ");
   }
   return words

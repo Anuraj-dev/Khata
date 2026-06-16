@@ -1,6 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { BackHandler, Pressable, StyleSheet, Text, View } from "react-native";
+import { useConvexAuth } from "convex/react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -35,6 +36,7 @@ import { useConfirm } from "./src/hooks/useConfirm";
 function MobileApp() {
   const insets = useSafeAreaInsets();
   const [isGuestMode, setIsGuestMode] = useState(false);
+  const { isAuthenticated } = useConvexAuth();
 
   const {
     session,
@@ -157,7 +159,10 @@ function MobileApp() {
       {/* Screens */}
       {activeTab === "expenses" ? (
         <ScreenErrorBoundary screenName="Expenses">
-          <ExpensesScreen onAddPress={() => setIsAddSheetOpen(true)} />
+          <ExpensesScreen
+            isAuthenticated={isAuthenticated}
+            onAddPress={() => setIsAddSheetOpen(true)}
+          />
         </ScreenErrorBoundary>
       ) : null}
       {activeTab === "trips" ? (

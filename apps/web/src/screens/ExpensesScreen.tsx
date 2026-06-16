@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import type { Doc } from "@convex/_generated/dataModel";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "@convex/_generated/api";
+import type { Doc, Id } from "@convex/_generated/dataModel";
+import { suggestByName } from "../../../../convex/contactMatch";
 import { formatRupees, todayIso } from "../lib/dates";
 import { expenseStore, type LocalExpense } from "../lib/expenseStorage";
 import { useExpenseList } from "../hooks/useExpenseList";
@@ -12,6 +15,7 @@ import { MonthDivider } from "../components/MonthDivider";
 import { EmptyExpenses } from "../components/EmptyExpenses";
 import { ReviewBanner } from "../components/ReviewBanner";
 import { TripsSummary } from "../components/TripsSummary";
+import { RecurringCard } from "../components/RecurringCard";
 import { BudgetPromptCard } from "../components/BudgetPromptCard";
 import { SetBudgetSheet } from "../components/SetBudgetSheet";
 import { TagUdhaarSheet } from "../components/TagUdhaarSheet";
@@ -49,7 +53,29 @@ export function ExpensesScreen({ isAuthenticated, onAddPress, showToast }: Props
     limit: historyLimit,
   });
   const { resolve } = useCategories();
+  const contacts = useQuery(api.contacts.listContacts, isAuthenticated ? {} : "skip");
+  const setTag = useMutation(api.udhaar.setTag);
   const budget = useBudget(isAuthenticated);
+
+  // A one-tap suggestion for an untagged SMS expense whose parsed name fuzzily
+  // matches a contact. Exact matches are already auto-linked server-side, so
+  // anything still untagged here is a fuzzy hint worth offering.
+  function suggestionFor(e: LocalExpense): string | null {
+    if (e.udhaarPerson || !e.party || !e.syncedId || !contacts?.length) return null;
+    const m = suggestByName(e.party, contacts);
+    if (!m) return null;
+    return contacts.find((c) => c.contactId === m.contactId)?.name ?? null;
+  }
+
+  async function acceptSuggestion(e: LocalExpense, name: string) {
+    if (!e.syncedId) return;
+    try {
+      await setTag({ expenseId: e.syncedId as Id<"expenses">, person: name });
+      showToast({ kind: "info", message: `Tagged with ${name}.` });
+    } catch {
+      showToast({ kind: "error", message: "Couldn't tag. Try again." });
+    }
+  }
   const [budgetSheetOpen, setBudgetSheetOpen] = useState(false);
   const [taggingExpense, setTaggingExpense] = useState<LocalExpense | null>(null);
   const [promptDismissed, setPromptDismissed] = useState(
@@ -90,6 +116,8 @@ export function ExpensesScreen({ isAuthenticated, onAddPress, showToast }: Props
       direction: e.direction,
       upiRef: e.upiRef,
       party: e.party,
+      counterpartyHandle: e.counterpartyHandle,
+      contactId: e.contactId,
       udhaarPerson: e.udhaarPerson,
       date: e.date,
       createdAt: e._creationTime,
@@ -240,6 +268,7 @@ export function ExpensesScreen({ isAuthenticated, onAddPress, showToast }: Props
         />
       )}
       <TripsSummary isAuthenticated={isAuthenticated} />
+      <RecurringCard isAuthenticated={isAuthenticated} />
 
       {/* Expense list */}
       <div
@@ -259,14 +288,32 @@ export function ExpensesScreen({ isAuthenticated, onAddPress, showToast }: Props
                 net={section.totalCredit - section.totalDebit}
                 showNet={section.label !== "Today"}
               />
-              {section.data.map((expense) => (
-                <ExpenseCard
-                  key={expense.id}
-                  expense={expense}
-                  meta={resolve(expense.category)}
-                  onPress={expense.syncedId ? () => setTaggingExpense(expense) : undefined}
-                />
-              ))}
+              {section.data.map((expense) => {
+                const suggestion = suggestionFor(expense);
+                return (
+                  <div key={expense.id}>
+                    <ExpenseCard
+                      expense={expense}
+                      meta={resolve(expense.category)}
+                      onPress={expense.syncedId ? () => setTaggingExpense(expense) : undefined}
+                    />
+                    {suggestion && (
+                      <button
+                        onClick={() => void acceptSuggestion(expense, suggestion)}
+                        className="ml-[68px] mb-2 -mt-1 rounded-full px-2.5 py-1 text-xs font-medium"
+                        style={{
+                          background: "var(--color-credit)" + "1a",
+                          color: "var(--color-credit)",
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                      >
+                        🤝 Tag as {suggestion}?
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           );
         })}

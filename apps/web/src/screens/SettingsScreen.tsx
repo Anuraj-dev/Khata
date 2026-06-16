@@ -11,6 +11,7 @@ import { useBudget } from "../hooks/useBudget";
 import { formatRupees } from "../lib/dates";
 import { AddCategoryForm } from "../components/AddCategoryForm";
 import { SetBudgetSheet } from "../components/SetBudgetSheet";
+import { CategoryCapSheet } from "../components/CategoryCapSheet";
 import { BUILTIN_CATEGORIES } from "../lib/categories";
 import { Button } from "../components/Button";
 import { PlusIcon } from "../components/icons";
@@ -137,6 +138,8 @@ export function SettingsScreen({ showToast }: Props) {
 
       <BudgetSection showToast={showToast} />
 
+      <CategoryCapsSection showToast={showToast} />
+
       <CategoriesSection />
 
       <Section title="Notifications">
@@ -228,6 +231,72 @@ function BudgetSection({ showToast }: Props) {
           await clearBudget({});
           showToast({ kind: "info", message: "Budget removed." });
         }}
+      />
+    </>
+  );
+}
+
+function CategoryCapsSection({ showToast }: Props) {
+  const { categoryBudgets, setCategoryBudget, clearCategoryBudget } = useBudget(true);
+  const { categories, resolve } = useCategories();
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [preset, setPreset] = useState<{ category: string; amount: number } | null>(null);
+
+  function openAdd() {
+    setPreset(null);
+    setSheetOpen(true);
+  }
+
+  return (
+    <>
+      <Section title="Category caps">
+        {categoryBudgets.map((cb) => {
+          const meta = resolve(cb.category);
+          const over = cb.spent >= cb.monthlyLimit;
+          const pct = cb.monthlyLimit > 0 ? Math.min(100, (cb.spent / cb.monthlyLimit) * 100) : 0;
+          return (
+            <button
+              key={cb.category}
+              onClick={() => {
+                setPreset({ category: cb.category, amount: cb.monthlyLimit });
+                setSheetOpen(true);
+              }}
+              className="flex w-full flex-col gap-1.5 px-4 py-3 text-left"
+              style={{ background: "transparent", border: "none", borderBottom: "1px solid var(--color-border-subtle)", cursor: "pointer" }}
+            >
+              <div className="flex items-center justify-between text-sm">
+                <span style={{ color: "var(--color-text-primary)" }}>
+                  {meta.emoji} {meta.label}
+                </span>
+                <span className="tabular-nums" style={{ color: over ? "var(--color-debit)" : "var(--color-text-secondary)", fontFamily: "var(--font-mono)" }}>
+                  {formatRupees(cb.spent)} / {formatRupees(cb.monthlyLimit)}
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "var(--color-surface-elevated)" }}>
+                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: over ? "var(--color-debit)" : meta.color }} />
+              </div>
+            </button>
+          );
+        })}
+        <div className="px-4 py-3" style={{ background: "var(--color-surface)" }}>
+          <Button variant="secondary" size="sm" className="self-start" leftIcon={<PlusIcon size={15} />} onClick={openAdd}>
+            Add cap
+          </Button>
+        </div>
+      </Section>
+      <CategoryCapSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        categories={categories}
+        preset={preset}
+        cappedIds={categoryBudgets.map((c) => c.category)}
+        onSave={async (category, paise) => {
+          await setCategoryBudget({ category, monthlyLimit: paise });
+        }}
+        onRemove={async (category) => {
+          await clearCategoryBudget({ category });
+        }}
+        showToast={showToast}
       />
     </>
   );

@@ -1,6 +1,8 @@
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
 import { requireTokenIdentifier } from "./authHelpers";
+import { findOrCreateContactByName, tagExpenseToPerson } from "./contactsHelpers";
 
 // All udhaar-tagged expenses for the caller. The index puts untagged rows
 // (udhaarPerson undefined) before all string values, so `> ""` skips them.
@@ -22,13 +24,17 @@ export const balances = query({
     const owner = await requireTokenIdentifier(ctx);
     const tagged = await taggedExpenses(ctx, owner);
 
-    const byPerson = new Map<string, { net: number; count: number; lastActivity: number }>();
+    const byPerson = new Map<
+      string,
+      { net: number; count: number; lastActivity: number; contactId?: Id<"contacts"> }
+    >();
     for (const e of tagged) {
       const person = e.udhaarPerson!;
       const agg = byPerson.get(person) ?? { net: 0, count: 0, lastActivity: 0 };
       agg.net += e.direction === "debit" ? e.amount : -e.amount;
       agg.count += 1;
       agg.lastActivity = Math.max(agg.lastActivity, e.createdAt);
+      if (e.contactId) agg.contactId = e.contactId;
       byPerson.set(person, agg);
     }
 
@@ -69,6 +75,7 @@ export const addRepayment = mutation({
     const owner = await requireTokenIdentifier(ctx);
     const trimmed = args.person.trim();
     if (!trimmed) throw new Error("Person name required");
+    const { contactId, name } = await findOrCreateContactByName(ctx, owner, trimmed);
     const now = Date.now();
     await ctx.db.insert("expenses", {
       clientId: args.clientId,
@@ -78,7 +85,8 @@ export const addRepayment = mutation({
       source: "manual",
       direction: args.direction,
       date: args.date,
-      udhaarPerson: trimmed,
+      contactId,
+      udhaarPerson: name,
       ownerTokenIdentifier: owner,
       createdAt: now,
       updatedAt: now,
@@ -95,11 +103,24 @@ export const setTag = mutation({
     const expense = await ctx.db.get(expenseId);
     if (!expense || expense.ownerTokenIdentifier !== owner) throw new Error("Not found");
 
-    const trimmed = person?.trim() ?? "";
-    if (person !== null && !trimmed) throw new Error("Name required");
+    if (person === null) {
+      await ctx.db.patch(expenseId, {
+        udhaarPerson: undefined,
+        contactId: undefined,
+        updatedAt: Date.now(),
+      });
+      return;
+    }
 
+    const trimmed = person.trim();
+    if (!trimmed) throw new Error("Name required");
+
+    // Find/create the contact, learn this expense's handle as an alias, and write
+    // the canonical name so all of the contact's transactions group together.
+    const { contactId, name } = await tagExpenseToPerson(ctx, owner, expense, trimmed);
     await ctx.db.patch(expenseId, {
-      udhaarPerson: person === null ? undefined : trimmed,
+      contactId,
+      udhaarPerson: name,
       updatedAt: Date.now(),
     });
   },

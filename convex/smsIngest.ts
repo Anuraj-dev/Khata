@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireTokenIdentifier } from "./authHelpers";
 import { parseSms, isUpiSms, categorizeSms, smsClientId } from "./smsParser";
+import { resolveForIngest } from "./contactsHelpers";
 
 // Convex runs in UTC; the app is IST. Convert an epoch-ms SMS receive time to the
 // IST calendar date (yyyy-mm-dd) so the fallback date matches what the device-side
@@ -97,6 +98,11 @@ export const ingestFromDevice = internalMutation({
         .unique();
       if (existing) return { ok: true as const, action: "duplicate" as const };
 
+      const contactFields = await resolveForIngest(ctx, owner, {
+        handle: parsed.handle,
+        party: parsed.party,
+      });
+
       const now = Date.now();
       await ctx.db.insert("expenses", {
         clientId,
@@ -108,6 +114,7 @@ export const ingestFromDevice = internalMutation({
         upiRef: parsed.upiRef,
         party: parsed.party,
         date,
+        ...contactFields,
         ownerTokenIdentifier: owner,
         createdAt: now,
         updatedAt: now,

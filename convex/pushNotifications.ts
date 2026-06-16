@@ -199,6 +199,36 @@ export const sendCashNudges = internalAction({
   },
 });
 
+// Daily cron: remind about recurring bills due in the next few days that haven't
+// been paid yet this month.
+export const sendRecurringReminders = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const auth = await getAuth();
+    if (!auth) return;
+    const month = new Date(Date.now() + 5.5 * 60 * 60 * 1000).toISOString().slice(0, 7);
+    const owners = await ctx.runQuery(internal.pushNotifications.getPushTokenOwners, {});
+    for (const owner of owners) {
+      const due = await ctx.runQuery(internal.recurring.dueForReminder, { owner });
+      if (!due.length) continue;
+      const tokens = await ctx.runQuery(internal.pushNotifications.getTokensForUser, {
+        ownerTokenIdentifier: owner,
+      });
+      if (!tokens.length) continue;
+      const title = due.length === 1 ? "Bill coming up" : "Bills coming up";
+      const body =
+        due.length === 1
+          ? `${due[0].label} (~₹${formatRupees(due[0].typicalAmount)}) is due in a few days.`
+          : `${due.length} bills due in the next few days.`;
+      const data: Record<string, string> = { type: "recurring" };
+      await Promise.all(tokens.map((t) => sendOne(t, auth, { title, body }, data)));
+      for (const r of due) {
+        await ctx.runMutation(internal.recurring.markReminded, { ruleId: r.ruleId, month });
+      }
+    }
+  },
+});
+
 // Daily cron: remind users of outstanding trip balances.
 export const sendSettlementReminders = internalAction({
   args: {},

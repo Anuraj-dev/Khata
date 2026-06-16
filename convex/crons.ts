@@ -27,4 +27,12 @@ crons.daily(
   {}
 );
 
+// 8:00 AM IST = 2:30 AM UTC — remind about recurring bills due in the next few days.
+crons.daily(
+  "recurring bill reminders",
+  { hourUTC: 2, minuteUTC: 30 },
+  internal.pushNotifications.sendRecurringReminders,
+  {}
+);
+
 export default crons;

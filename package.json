@@ -10,6 +10,8 @@
     "web:build": "bun run --cwd apps/web build",
     "web:preview": "bun run --cwd apps/web preview",
     "web:typecheck": "bun run --cwd apps/web typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "mobile:start": "bun run --cwd apps/mobile start",
     "mobile:start:tunnel": "bun run --cwd apps/mobile start:tunnel",
     "mobile:android": "bun run --cwd apps/mobile android",
@@ -23,7 +25,9 @@
   },
   "devDependencies": {
     "@types/node": "^22",
-    "typescript": "~5.9.2"
+    "convex-test": "^0.0.53",
+    "typescript": "~5.9.2",
+    "vitest": "^4.1.9"
   },
   "overrides": {
     "react": "19.1.0",

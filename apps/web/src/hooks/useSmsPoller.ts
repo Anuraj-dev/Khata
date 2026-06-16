@@ -65,6 +65,7 @@ export function useSmsPoller() {
               date: msg.parsedDate,
               party: msg.parsedParty,
               upiRef: msg.parsedUpiRef,
+              handle: msg.parsedHandle,
             });
           } else {
             // Ambiguous / unparseable → queue for manual review.

@@ -2,6 +2,7 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireTokenIdentifier } from "./authHelpers";
+import { resolveForIngest } from "./contactsHelpers";
 
 export const listPending = query({
   args: {},
@@ -59,8 +60,9 @@ export const autoLog = mutation({
     date: v.string(),
     party: v.optional(v.string()),
     upiRef: v.optional(v.string()),
+    handle: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, { handle, ...args }) => {
     const owner = await requireTokenIdentifier(ctx);
 
     const existing = await ctx.db
@@ -71,9 +73,12 @@ export const autoLog = mutation({
       .unique();
     if (existing) return existing._id;
 
+    const contactFields = await resolveForIngest(ctx, owner, { handle, party: args.party });
+
     const now = Date.now();
     const id = await ctx.db.insert("expenses", {
       ...args,
+      ...contactFields,
       source: "sms",
       ownerTokenIdentifier: owner,
       createdAt: now,
@@ -98,13 +103,19 @@ export const approve = mutation({
     date: v.string(),
     party: v.optional(v.string()),
     upiRef: v.optional(v.string()),
+    handle: v.optional(v.string()),
   },
-  handler: async (ctx, { queueId, ...expenseFields }) => {
+  handler: async (ctx, { queueId, handle, ...expenseFields }) => {
     const owner = await requireTokenIdentifier(ctx);
     const item = await ctx.db.get(queueId);
     if (!item || item.ownerTokenIdentifier !== owner) throw new Error("Not found");
 
     await ctx.db.patch(queueId, { status: "approved", reviewedAt: Date.now() });
+
+    const contactFields = await resolveForIngest(ctx, owner, {
+      handle,
+      party: expenseFields.party,
+    });
 
     const now = Date.now();
     const id = await ctx.db.insert("expenses", {
@@ -117,6 +128,7 @@ export const approve = mutation({
       date: expenseFields.date,
       party: expenseFields.party,
       upiRef: expenseFields.upiRef,
+      ...contactFields,
       ownerTokenIdentifier: owner,
       createdAt: now,
       updatedAt: now,

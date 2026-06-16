@@ -46,6 +46,14 @@ export function ExpenseCard({ expense, meta, onPress }: Props) {
   const catColor = cat.color;
   const icon = cat.emoji;
 
+  // Phone-only counterparty (no name parsed): show the formatted number rather
+  // than a generic "Bank transaction", and hint that a tap can name it.
+  const phone =
+    !expense.party && expense.counterpartyHandle && /^\d{10}$/.test(expense.counterpartyHandle)
+      ? `${expense.counterpartyHandle.slice(0, 5)} ${expense.counterpartyHandle.slice(5)}`
+      : null;
+  const title = expense.party || phone || expense.note || cat.label;
+
   const timeStr = new Date(expense.createdAt).toLocaleTimeString("en-IN", {
     hour: "2-digit",
     minute: "2-digit",
@@ -79,9 +87,9 @@ export function ExpenseCard({ expense, meta, onPress }: Props) {
         <div className="flex items-center gap-1.5 min-w-0">
           <span
             className="text-sm font-medium truncate"
-            style={{ color: "var(--color-text-primary)" }}
+            style={{ color: phone ? "var(--color-text-secondary)" : "var(--color-text-primary)" }}
           >
-            {expense.note || cat.label}
+            {title}
           </span>
           {expense.source === "sms" && <UpiTag />}
           {expense.udhaarPerson && <UdhaarTag person={expense.udhaarPerson} />}
