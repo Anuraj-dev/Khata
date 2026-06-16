@@ -1,4 +1,10 @@
-// Khata currently uses the Convex development deployment for every client
-// build so the web site and Capacitor app read the same development data.
-export const CONVEX_URL = "https://tangible-finch-68.convex.cloud";
-export const CONVEX_SITE_URL = "https://tangible-finch-68.convex.site";
+const DEV_URL = "https://tangible-finch-68.convex.cloud";
+const DEV_SITE_URL = "https://tangible-finch-68.convex.site";
+
+export const CONVEX_URL =
+  (import.meta.env.VITE_CONVEX_URL as string | undefined) ?? DEV_URL;
+
+export const CONVEX_SITE_URL =
+  (import.meta.env.VITE_CONVEX_SITE_URL as string | undefined) ??
+  CONVEX_URL.replace(".convex.cloud", ".convex.site") ??
+  DEV_SITE_URL;

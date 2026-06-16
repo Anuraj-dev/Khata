@@ -41,6 +41,8 @@ jobs:
         working-directory: apps/web
         env:
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
+          VITE_CONVEX_URL: https://formal-dove-357.convex.cloud
+          VITE_CONVEX_SITE_URL: https://formal-dove-357.convex.site
           # Deployed web origin so in-app trip QR/links resolve cross-device
           # instead of falling back to the WebView's https://localhost origin.
           VITE_APP_URL: https://khata.raja-dev.me

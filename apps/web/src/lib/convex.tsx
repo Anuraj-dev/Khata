@@ -4,9 +4,7 @@ import type { ReactNode } from "react";
 import { authClient } from "./auth-client";
 import { CONVEX_URL } from "./deployment";
 
-const convex = new ConvexReactClient(CONVEX_URL, {
-  expectAuth: true,
-});
+const convex = new ConvexReactClient(CONVEX_URL);
 
 export function ConvexClientProvider({ children }: { children: ReactNode }) {
   return (
