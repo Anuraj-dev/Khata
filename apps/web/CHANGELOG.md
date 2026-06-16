@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.13.0](https://github.com/Anuraj-dev/Khata/compare/v0.12.0...v0.13.0) (2026-06-16)
+
+
+### Features
+
+* **budget:** per-category spend caps ([6a2323d](https://github.com/Anuraj-dev/Khata/commit/6a2323df7907e6e3dc079d36691cad42d23ec2e4))
+* **insights:** trends, top merchants drill-down, donut/line charts ([21400de](https://github.com/Anuraj-dev/Khata/commit/21400deca9f63465b3c808e3ca3e7f8da17a3488))
+* recurring-bill radar + mobile server-sync ([477bcff](https://github.com/Anuraj-dev/Khata/commit/477bcff149405fc6498672b851ea763ad7596be1))
+* **recurring:** recurring-bill radar with reminders ([c19253c](https://github.com/Anuraj-dev/Khata/commit/c19253ca6197e44127c335d0e28774d5d389fde4))
+* **trips:** one-tap 'everyone's settled' close ([ac73f80](https://github.com/Anuraj-dev/Khata/commit/ac73f80b562ec5f86f4839086ff452b455f8986e))
+* **udhaar:** auto-capture via contacts + roll-up across handles ([2b1de1b](https://github.com/Anuraj-dev/Khata/commit/2b1de1bfc523d2991c14435a0cece69f9d997ba7))
+* **udhaar:** manual cash udhaar entry + merge-people UI ([6c4d27a](https://github.com/Anuraj-dev/Khata/commit/6c4d27a7cab43a631448567b24d88f4fa2bc1bc5))
+* **udhaar:** suggestion chips + phone-only handle display ([e84fe80](https://github.com/Anuraj-dev/Khata/commit/e84fe8051c1e215d429d9b1b6ebf9e0311984547))
+
 ## [0.12.0](https://github.com/Anuraj-dev/Khata/compare/v0.11.0...v0.12.0) (2026-06-12)
 
 
