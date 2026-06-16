@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.1](https://github.com/Anuraj-dev/Khata/compare/v0.13.0...v0.13.1) (2026-06-16)
+
+
+### Bug Fixes
+
+* **infra:** point APK at prod Convex deployment for instant load ([4537e3b](https://github.com/Anuraj-dev/Khata/commit/4537e3bdbe4e0d5c2469cce88bf7aee54015e91f))
+* **infra:** point APK at prod Convex deployment for instant load ([ee9a0ff](https://github.com/Anuraj-dev/Khata/commit/ee9a0ffebc5a2b1a0c94ec84609f4669b17eb24f))
+
 ## [0.13.0](https://github.com/Anuraj-dev/Khata/compare/v0.12.0...v0.13.0) (2026-06-16)
 
 
