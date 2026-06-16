@@ -112,6 +112,24 @@ export default defineSchema({
     .index("by_owner", ["ownerTokenIdentifier"])
     .index("by_owner_category", ["ownerTokenIdentifier", "category"]),
 
+  // Confirmed recurring bills (rent, mess, subscriptions). Detected from the
+  // expense history but only tracked once the user confirms — `status:
+  // "dismissed"` keeps a rejected suggestion from resurfacing. `key` is the
+  // normalized counterparty (handle or name-key) used to match future debits.
+  recurringRules: defineTable({
+    ownerTokenIdentifier: v.string(),
+    key: v.string(),
+    label: v.string(),
+    typicalAmount: v.number(), // paise
+    dayOfMonth: v.number(),
+    status: v.union(v.literal("active"), v.literal("dismissed")),
+    lastRemindedMonth: v.optional(v.string()), // yyyy-mm (IST)
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_owner", ["ownerTokenIdentifier"])
+    .index("by_owner_key", ["ownerTokenIdentifier", "key"]),
+
   trips: defineTable({
     clientId: v.string(),
     name: v.string(),

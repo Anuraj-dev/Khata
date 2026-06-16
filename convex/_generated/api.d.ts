@@ -21,6 +21,7 @@ import type * as http from "../http.js";
 import type * as index from "../index.js";
 import type * as pushNotifications from "../pushNotifications.js";
 import type * as pushTokens from "../pushTokens.js";
+import type * as recurring from "../recurring.js";
 import type * as settlements from "../settlements.js";
 import type * as smsIngest from "../smsIngest.js";
 import type * as smsParser from "../smsParser.js";
@@ -51,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   index: typeof index;
   pushNotifications: typeof pushNotifications;
   pushTokens: typeof pushTokens;
+  recurring: typeof recurring;
   settlements: typeof settlements;
   smsIngest: typeof smsIngest;
   smsParser: typeof smsParser;

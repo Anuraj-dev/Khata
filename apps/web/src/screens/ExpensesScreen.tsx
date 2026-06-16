@@ -15,6 +15,7 @@ import { MonthDivider } from "../components/MonthDivider";
 import { EmptyExpenses } from "../components/EmptyExpenses";
 import { ReviewBanner } from "../components/ReviewBanner";
 import { TripsSummary } from "../components/TripsSummary";
+import { RecurringCard } from "../components/RecurringCard";
 import { BudgetPromptCard } from "../components/BudgetPromptCard";
 import { SetBudgetSheet } from "../components/SetBudgetSheet";
 import { TagUdhaarSheet } from "../components/TagUdhaarSheet";
@@ -267,6 +268,7 @@ export function ExpensesScreen({ isAuthenticated, onAddPress, showToast }: Props
         />
       )}
       <TripsSummary isAuthenticated={isAuthenticated} />
+      <RecurringCard isAuthenticated={isAuthenticated} />
 
       {/* Expense list */}
       <div
