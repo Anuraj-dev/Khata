@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router";
-import { useConvexAuth } from "convex/react";
+import { useConvexAuth, useMutation } from "convex/react";
+import { api } from "@convex/_generated/api";
 import { Capacitor } from "@capacitor/core";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { ConvexClientProvider } from "./lib/convex";
@@ -70,9 +71,36 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
     setTimeout(() => setToast(null), 3000);
   }
 
-  // Retry queue — noop runner until we wire trip mutations in M4
-  const runRetryPayload = useCallback(async (_payload: RetryPayload) => { }, []);
-  const { enqueueRetry } = useRetryQueue({
+  // Raw mutations used by the retry runner — bypass the error-handling wrapper
+  // in useExpenseMutations so the retry queue applies its own backoff logic.
+  const addExpenseMutation = useMutation(api.expenses.addExpense);
+  const deleteExpenseMutation = useMutation(api.expenses.deleteExpense);
+
+  const runRetryPayload = useCallback(async (payload: RetryPayload): Promise<void> => {
+    switch (payload.type) {
+      case "addExpense":
+        await addExpenseMutation({
+          clientId: payload.clientId,
+          amount: payload.amount,
+          note: payload.note,
+          category: payload.category,
+          source: "manual",
+          direction: payload.direction,
+          date: payload.date,
+          party: payload.party,
+          upiRef: payload.upiRef,
+        });
+        break;
+      case "deleteExpense":
+        await deleteExpenseMutation({ expenseId: payload.expenseId });
+        break;
+      case "addTripExpense":
+        // M4: wire when trip mutations land
+        break;
+    }
+  }, [addExpenseMutation, deleteExpenseMutation]);
+
+  const { enqueueRetry, retryQueuedMutations } = useRetryQueue({
     runRetryPayload,
     onRetryComplete: (msg) => showToast({ kind: "info", message: msg }),
   });
@@ -80,6 +108,13 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
   const { addExpense } = useExpenseMutations({ showToast, enqueueRetry });
   useSmsPoller();
   usePushNotifications();
+
+  // Flush offline write queue the moment the device comes back online.
+  useEffect(() => {
+    const flush = () => { void retryQueuedMutations(); };
+    window.addEventListener("online", flush);
+    return () => window.removeEventListener("online", flush);
+  }, [retryQueuedMutations]);
 
   // Resume a trip invite that was opened before sign-in (the token was stashed
   // pre-auth so it survives the OAuth round-trip).
@@ -241,14 +276,18 @@ function AuthGate({ children }: { children: (isAuthenticated: boolean) => React.
   // Persist the resolved state for the next cold start.
   useEffect(() => {
     if (isLoading) return;
-    if (isAuthenticated) localStorage.setItem(WAS_AUTHED_KEY, "1");
-    else localStorage.removeItem(WAS_AUTHED_KEY);
+    if (isAuthenticated) {
+      localStorage.setItem(WAS_AUTHED_KEY, "1");
+    } else if (navigator.onLine) {
+      // Only evict the flag when online and confirmed logged out. Offline,
+      // Convex resolves as unauthenticated — don't sign the user out for that.
+      localStorage.removeItem(WAS_AUTHED_KEY);
+    }
   }, [isLoading, isAuthenticated]);
 
-  if (isLoading) {
-    // Returning user: render the shell against the local cache right away. The
-    // expense list hydrates from localStorage, and queries no-op (isAuthenticated
-    // false) until the session lands, then flip on without a remount.
+  // While auth is resolving, or when offline with a prior session, show the
+  // cached shell. Convex queries will be empty but the UI stays usable.
+  if (isLoading || (wasAuthed && !navigator.onLine)) {
     if (wasAuthed) return <>{children(false)}</>;
     return <BootScreen />;
   }
