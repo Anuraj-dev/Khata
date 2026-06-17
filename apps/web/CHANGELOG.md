@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.13.4](https://github.com/Anuraj-dev/Khata/compare/v0.13.3...v0.13.4) (2026-06-17)
+
+
+### Bug Fixes
+
+* **expenses:** fix stuck loading screen and remove dead Convex query ([76371d1](https://github.com/Anuraj-dev/Khata/commit/76371d12dca146e0a7af21bd00d093ed305c6b44))
+* **expenses:** fix stuck loading screen and remove dead Convex query ([45511e7](https://github.com/Anuraj-dev/Khata/commit/45511e767caf471344f39795c9c578d433d50c8b))
+
 ## [0.13.3](https://github.com/Anuraj-dev/Khata/compare/v0.13.2...v0.13.3) (2026-06-16)
 
 
