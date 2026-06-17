@@ -129,19 +129,66 @@ export function ExpensesScreen({ isAuthenticated, onAddPress, showToast }: Props
   // Net for the day: what's left after spend vs received. Positive = up, negative = down.
   const todayNet = todayCredit - todayDebit;
 
+  // Show the loading gate only when there is genuinely nothing to display yet:
+  // - localStorage hasn't hydrated (one React tick), OR
+  // - we're empty AND either auth is still resolving or the server query is in-flight.
+  // Removing "recentExpenses.length > 0" from this check was the key fix: that
+  // condition kept the gate open even after the query resolved, waiting on a
+  // useEffect sync that could be delayed or dropped on reconnect.
   const isExpenseBootstrapPending =
     !isHydrated ||
-    !isAuthenticated ||
-    isRecentLoading ||
-    recentExpenses.length > 0;
+    (isEmpty && (!isAuthenticated || isRecentLoading));
 
   if (isEmpty && isExpenseBootstrapPending) {
     return (
-      <div
-        className="flex flex-1 items-center justify-center"
-        style={{ color: "var(--color-text-muted)" }}
-      >
-        <span className="text-sm">Loading expenses…</span>
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden pb-4 px-4 gap-3 pt-3">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div
+            key={i}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl"
+            style={{
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border-subtle)",
+              opacity: 1 - i * 0.12,
+            }}
+          >
+            <div
+              className="shrink-0 rounded-full"
+              style={{
+                width: 36, height: 36,
+                background: "var(--color-border-subtle)",
+                animation: "khata-pulse 1.4s ease-in-out infinite",
+                animationDelay: `${i * 0.1}s`,
+              }}
+            />
+            <div className="flex flex-col gap-1.5 flex-1">
+              <div
+                style={{
+                  height: 12, borderRadius: 6, width: "55%",
+                  background: "var(--color-border-subtle)",
+                  animation: "khata-pulse 1.4s ease-in-out infinite",
+                  animationDelay: `${i * 0.1 + 0.05}s`,
+                }}
+              />
+              <div
+                style={{
+                  height: 10, borderRadius: 6, width: "35%",
+                  background: "var(--color-border-subtle)",
+                  animation: "khata-pulse 1.4s ease-in-out infinite",
+                  animationDelay: `${i * 0.1 + 0.1}s`,
+                }}
+              />
+            </div>
+            <div
+              style={{
+                height: 14, borderRadius: 6, width: 52,
+                background: "var(--color-border-subtle)",
+                animation: "khata-pulse 1.4s ease-in-out infinite",
+                animationDelay: `${i * 0.1 + 0.15}s`,
+              }}
+            />
+          </div>
+        ))}
       </div>
     );
   }
