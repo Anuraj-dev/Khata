@@ -122,6 +122,12 @@ html, body {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Skeleton shimmer used while content is loading */
+@keyframes khata-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 /* Reveal-on-scroll / entrance base used by landing sections + toast */
 @keyframes khata-rise {
   from {

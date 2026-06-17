@@ -12,11 +12,6 @@ export function useExpenseQueries({
 }) {
   const today = todayIso();
 
-  const todayExpenses = useQuery(
-    api.expenses.listByDate,
-    isAuthenticated ? { date: today } : "skip"
-  );
-
   const recentExpenses = useQuery(
     api.expenses.listRecent,
     isAuthenticated ? { limit } : "skip"
@@ -24,9 +19,7 @@ export function useExpenseQueries({
 
   return {
     today,
-    todayExpenses: todayExpenses ?? [],
     recentExpenses: recentExpenses ?? [],
-    isTodayLoading: todayExpenses === undefined,
     isRecentLoading: recentExpenses === undefined,
   };
 }
