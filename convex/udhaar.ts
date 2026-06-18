@@ -2,6 +2,7 @@ import { mutation, query, type QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { requireTokenIdentifier } from "./authHelpers";
+import { assertValidAmount } from "./validators";
 import { findOrCreateContactByName, tagExpenseToPerson } from "./contactsHelpers";
 
 // All udhaar-tagged expenses for the caller. The index puts untagged rows
@@ -73,6 +74,7 @@ export const addRepayment = mutation({
   },
   handler: async (ctx, args) => {
     const owner = await requireTokenIdentifier(ctx);
+    assertValidAmount(args.amount);
     const trimmed = args.person.trim();
     if (!trimmed) throw new Error("Person name required");
     const { contactId, name } = await findOrCreateContactByName(ctx, owner, trimmed);

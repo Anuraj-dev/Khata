@@ -2,6 +2,7 @@ import { internalQuery, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireTokenIdentifier } from "./authHelpers";
+import { assertValidAmount } from "./validators";
 import { resolveTripAccess } from "./tripAccess";
 import type { Doc, Id } from "./_generated/dataModel";
 
@@ -398,6 +399,7 @@ export const addTripExpense = mutation({
     const owner = await requireTokenIdentifier(ctx);
     const trip = await ctx.db.get(args.tripId);
     if (!trip || trip.ownerTokenIdentifier !== owner) throw new Error("Not found");
+    assertValidAmount(args.amount);
     const expenseId = await ctx.db.insert("tripExpenses", {
       ...args,
       ownerTokenIdentifier: owner,

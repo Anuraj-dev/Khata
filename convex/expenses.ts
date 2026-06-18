@@ -2,6 +2,7 @@ import { internalQuery, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireTokenIdentifier } from "./authHelpers";
+import { assertValidAmount } from "./validators";
 
 export const listByDate = query({
   args: { date: v.string() },
@@ -70,6 +71,7 @@ export const addExpense = mutation({
   },
   handler: async (ctx, args) => {
     const owner = await requireTokenIdentifier(ctx);
+    assertValidAmount(args.amount);
     const now = Date.now();
     const id = await ctx.db.insert("expenses", {
       ...args,
@@ -98,6 +100,7 @@ export const updateExpense = mutation({
     const owner = await requireTokenIdentifier(ctx);
     const expense = await ctx.db.get(expenseId);
     if (!expense || expense.ownerTokenIdentifier !== owner) throw new Error("Not found");
+    if (updates.amount !== undefined) assertValidAmount(updates.amount);
     await ctx.db.patch(expenseId, { ...updates, updatedAt: Date.now() });
   },
 });
