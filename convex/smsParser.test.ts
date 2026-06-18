@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseSms, cleanPartyName } from "./smsParser";
+import { parseSms, cleanPartyName, categorizeSms, isUpiSms } from "./smsParser";
 
 // Each case below mirrors a real failure observed in the dev data (phone-VPA
 // credits logged as digits, hashes logged as names, "Vaibhav 138" tails,
@@ -70,6 +70,57 @@ describe("parseSms — non-transactions", () => {
 
   it("returns null when there is no debit/credit keyword", () => {
     expect(parseSms("Rs 500 is your available balance")).toBeNull();
+  });
+});
+
+describe("parseSms — amount precision", () => {
+  it("prefers the verb-anchored amount over a leading available balance", () => {
+    const r = parseSms(
+      "Avbl Bal Rs.9,999.00. A/C XX1234 debited by Rs.250.00 via UPI to shop@oksbi on 18-06-26 -HDFC"
+    );
+    expect(r?.amount).toBe(25000); // ₹250, not the ₹9,999 balance
+    expect(r?.direction).toBe("debit");
+  });
+
+  it("still reads the common amount-before-verb order", () => {
+    const r = parseSms("Rs.250 debited via UPI to shop@oksbi on 18-06-26 -SBI");
+    expect(r?.amount).toBe(25000);
+  });
+});
+
+describe("parseSms — UPI ref fallback", () => {
+  it("captures a bare 12-digit RRN printed without the word 'no'", () => {
+    const r = parseSms("Rs 150 debited to chai@oksbi on 18-06-26 UPI:412345678901 -Axis");
+    expect(r?.upiRef).toBe("412345678901");
+  });
+
+  it("captures a 'Ref <12 digits>' tail", () => {
+    const r = parseSms("Rs 150 debited to chai@oksbi on 18-06-26 Ref 412345678901 -Axis");
+    expect(r?.upiRef).toBe("412345678901");
+  });
+});
+
+describe("categorizeSms", () => {
+  it("maps newly-added merchants to the right bucket", () => {
+    expect(categorizeSms("redbus", "")).toBe("travel");
+    expect(categorizeSms("nykaa", "")).toBe("shopping");
+    expect(categorizeSms(undefined, "paid to Dominos Pizza")).toBe("food");
+    expect(categorizeSms("medplus pharmacy", "")).toBe("health");
+  });
+
+  it("falls back to other for an unknown merchant", () => {
+    expect(categorizeSms("random shop", "")).toBe("other");
+  });
+});
+
+describe("isUpiSms", () => {
+  it("recognizes newer banks/PSPs as UPI senders", () => {
+    expect(isUpiSms("VM-INDUSIND", "Rs 100 debited via UPI")).toBe(true);
+    expect(isUpiSms("AD-JUPITER", "Rs 100 credited via UPI")).toBe(true);
+  });
+
+  it("rejects a non-bank sender", () => {
+    expect(isUpiSms("AMZNIN", "Your order shipped")).toBe(false);
   });
 });
 

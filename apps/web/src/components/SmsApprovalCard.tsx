@@ -4,7 +4,7 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { formatRupees, todayIso } from "../lib/dates";
 import { CategoryPicker } from "./CategoryPicker";
-import type { ExpenseCategory } from "../lib/expenseStorage";
+import type { ExpenseCategory, ExpenseDirection } from "../lib/expenseStorage";
 
 export type SmsQueueItem = {
   _id: Id<"smsReviewQueue">;
@@ -17,31 +17,41 @@ export type SmsQueueItem = {
   createdAt: number;
 };
 
+// Messages land in this queue precisely because the parser COULDN'T pull a
+// confident amount/direction — so the card must let the user complete those by
+// hand. It's a full editable form (amount, direction, category, note, date)
+// pre-filled with whatever parsed; nothing is gated on a successful parse.
 export function SmsApprovalCard({ item }: { item: SmsQueueItem }) {
-  const [approving, setApproving] = useState(false);
+  const [amountRupees, setAmountRupees] = useState(
+    item.parsedAmount != null ? String(item.parsedAmount / 100) : ""
+  );
+  const [direction, setDirection] = useState<ExpenseDirection>(
+    item.parsedDirection ?? "debit"
+  );
   const [category, setCategory] = useState<ExpenseCategory>("other");
   const [note, setNote] = useState(item.parsedParty ?? "");
+  const [date, setDate] = useState(item.parsedDate ?? todayIso());
   const [rawExpanded, setRawExpanded] = useState(false);
   const [busy, setBusy] = useState(false);
 
   const approve = useMutation(api.smsQueue.approve);
   const reject = useMutation(api.smsQueue.reject);
 
-  const isDebit = item.parsedDirection !== "credit";
-  const amountColor = isDebit ? "var(--color-debit)" : "var(--color-credit)";
-  const amountPrefix = isDebit ? "−" : "+";
+  const paise = Math.round((parseFloat(amountRupees) || 0) * 100);
+  const canSave = paise > 0 && !busy;
+  const amountColor = direction === "debit" ? "var(--color-debit)" : "var(--color-credit)";
 
-  async function handleApprove() {
-    if (!item.parsedAmount || !item.parsedDirection) return;
+  async function handleSave() {
+    if (!canSave) return;
     setBusy(true);
     try {
       await approve({
         queueId: item._id,
-        amount: item.parsedAmount,
-        note: note.trim() || item.parsedParty || "UPI",
+        amount: paise,
+        note: note.trim() || item.parsedParty || (direction === "debit" ? "UPI payment" : "UPI credit"),
         category,
-        direction: item.parsedDirection,
-        date: item.parsedDate ?? todayIso(),
+        direction,
+        date,
         party: item.parsedParty,
         upiRef: item.parsedUpiRef,
       });
@@ -62,27 +72,19 @@ export function SmsApprovalCard({ item }: { item: SmsQueueItem }) {
   return (
     <div
       className="mx-4 my-2 rounded-2xl overflow-hidden"
-      style={{
-        background: "var(--color-surface)",
-        border: "1px solid var(--color-border-subtle)",
-      }}
+      style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-subtle)" }}
     >
-      {/* Header row */}
+      {/* Header — live summary of what will be saved */}
       <div className="flex items-center gap-3 px-4 pt-4 pb-3">
-        {/* Direction badge */}
         <div
           className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-base"
           style={{ background: amountColor + "22", color: amountColor }}
         >
-          {isDebit ? "↑" : "↓"}
+          {direction === "debit" ? "↑" : "↓"}
         </div>
-
         <div className="flex flex-col flex-1 min-w-0">
-          <span
-            className="text-sm font-medium truncate"
-            style={{ color: "var(--color-text-primary)" }}
-          >
-            {item.parsedParty ?? (isDebit ? "Payment" : "Credit")}
+          <span className="text-sm font-medium truncate" style={{ color: "var(--color-text-primary)" }}>
+            {item.parsedParty ?? (direction === "debit" ? "Payment" : "Credit")}
           </span>
           {item.parsedUpiRef && (
             <span
@@ -93,13 +95,12 @@ export function SmsApprovalCard({ item }: { item: SmsQueueItem }) {
             </span>
           )}
         </div>
-
-        {item.parsedAmount != null && (
+        {paise > 0 && (
           <span
             className="text-base font-semibold shrink-0 tabular-nums"
             style={{ color: amountColor, fontFamily: "var(--font-mono)" }}
           >
-            {amountPrefix}{formatRupees(item.parsedAmount)}
+            {direction === "debit" ? "−" : "+"}{formatRupees(paise)}
           </span>
         )}
       </div>
@@ -114,7 +115,6 @@ export function SmsApprovalCard({ item }: { item: SmsQueueItem }) {
           {rawExpanded ? "▲ Hide SMS" : "▼ Show SMS"}
         </span>
       </button>
-
       {rawExpanded && (
         <div
           className="mx-4 mb-3 px-3 py-2 rounded-lg text-xs leading-relaxed"
@@ -129,76 +129,94 @@ export function SmsApprovalCard({ item }: { item: SmsQueueItem }) {
         </div>
       )}
 
-      {/* Approve form */}
-      {approving && (
-        <div
-          className="px-4 pb-3 pt-1 flex flex-col gap-3"
-          style={{ borderTop: "1px solid var(--color-border-subtle)" }}
-        >
-          <CategoryPicker value={category} onChange={setCategory} />
+      {/* Editable form — always available so an unparsed SMS can be completed */}
+      <div className="px-4 pb-3 pt-1 flex flex-col gap-3" style={{ borderTop: "1px solid var(--color-border-subtle)" }}>
+        {/* Direction toggle */}
+        <div className="flex gap-2">
+          {(["debit", "credit"] as const).map((dir) => {
+            const active = direction === dir;
+            const color = dir === "debit" ? "var(--color-debit)" : "var(--color-credit)";
+            return (
+              <button
+                key={dir}
+                type="button"
+                onClick={() => setDirection(dir)}
+                className="flex-1 py-2 rounded-xl text-sm font-medium"
+                style={{
+                  background: active ? color + "22" : "var(--color-bg)",
+                  color: active ? color : "var(--color-text-secondary)",
+                  border: `1px solid ${active ? color : "var(--color-border-subtle)"}`,
+                  cursor: "pointer",
+                }}
+              >
+                {dir === "debit" ? "Spent" : "Received"}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Amount + date */}
+        <div className="flex gap-2">
+          <div
+            className="flex items-center flex-1 px-3 rounded-xl"
+            style={{ background: "var(--color-bg)", border: "1px solid var(--color-border-default)" }}
+          >
+            <span className="text-sm" style={{ color: "var(--color-text-muted)", fontFamily: "var(--font-mono)" }}>₹</span>
+            <input
+              inputMode="decimal"
+              aria-label="Amount"
+              className="w-full px-2 py-2 text-sm bg-transparent outline-none"
+              style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}
+              placeholder="0"
+              value={amountRupees}
+              onChange={(e) => setAmountRupees(e.target.value.replace(/[^0-9.]/g, ""))}
+            />
+          </div>
           <input
-            className="w-full px-3 py-2 rounded-xl text-sm"
+            type="date"
+            aria-label="Date"
+            value={date}
+            max={todayIso()}
+            onChange={(e) => setDate(e.target.value || todayIso())}
+            className="shrink-0 px-3 py-2 rounded-xl text-sm outline-none"
             style={{
               background: "var(--color-bg)",
               border: "1px solid var(--color-border-default)",
-              color: "var(--color-text-primary)",
-              outline: "none",
+              color: "var(--color-text-secondary)",
+              fontFamily: "var(--font-mono)",
             }}
-            placeholder="Note (e.g. Groceries)"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
           />
-          <div className="flex gap-2">
-            <button
-              onClick={handleApprove}
-              disabled={busy || !item.parsedAmount}
-              className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-opacity"
-              style={{
-                background: "var(--color-accent)",
-                color: "#000",
-                opacity: busy ? 0.5 : 1,
-                border: "none",
-                cursor: busy ? "not-allowed" : "pointer",
-              }}
-            >
-              {busy ? "Saving…" : "Save expense"}
-            </button>
-            <button
-              onClick={() => setApproving(false)}
-              disabled={busy}
-              className="px-4 py-2.5 rounded-xl text-sm font-medium"
-              style={{
-                background: "var(--color-surface-elevated)",
-                color: "var(--color-text-secondary)",
-                border: "1px solid var(--color-border-subtle)",
-                cursor: "pointer",
-              }}
-            >
-              Cancel
-            </button>
-          </div>
         </div>
-      )}
 
-      {/* Action row */}
-      {!approving && (
-        <div
-          className="flex gap-2 px-4 pb-4 pt-2"
-          style={{ borderTop: "1px solid var(--color-border-subtle)" }}
-        >
+        <CategoryPicker value={category} onChange={setCategory} />
+
+        <input
+          className="w-full px-3 py-2 rounded-xl text-sm"
+          style={{
+            background: "var(--color-bg)",
+            border: "1px solid var(--color-border-default)",
+            color: "var(--color-text-primary)",
+            outline: "none",
+          }}
+          placeholder="Note (e.g. Groceries)"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+
+        <div className="flex gap-2">
           <button
-            onClick={() => setApproving(true)}
-            disabled={busy || !item.parsedAmount}
+            onClick={handleSave}
+            disabled={!canSave}
             className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-opacity"
             style={{
               background: "var(--color-accent)",
               color: "#000",
-              opacity: busy || !item.parsedAmount ? 0.4 : 1,
+              opacity: canSave ? 1 : 0.4,
               border: "none",
-              cursor: busy || !item.parsedAmount ? "not-allowed" : "pointer",
+              cursor: canSave ? "pointer" : "not-allowed",
             }}
           >
-            Add as expense
+            {busy ? "Saving…" : "Save expense"}
           </button>
           <button
             onClick={handleReject}
@@ -215,7 +233,7 @@ export function SmsApprovalCard({ item }: { item: SmsQueueItem }) {
             Reject
           </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }
