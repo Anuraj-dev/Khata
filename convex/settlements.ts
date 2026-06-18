@@ -1,6 +1,7 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireTokenIdentifier } from "./authHelpers";
+import { assertValidAmount } from "./validators";
 import { resolveTripAccess } from "./tripAccess";
 
 export const listByTrip = query({
@@ -34,6 +35,7 @@ export const recordPayment = mutation({
     const owner = await requireTokenIdentifier(ctx);
     const trip = await ctx.db.get(tripId);
     if (!trip || trip.ownerTokenIdentifier !== owner) throw new Error("Not found");
+    assertValidAmount(amount);
     const now = Date.now();
     return ctx.db.insert("settlements", {
       tripId,

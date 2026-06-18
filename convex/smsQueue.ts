@@ -2,6 +2,7 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireTokenIdentifier } from "./authHelpers";
+import { assertValidAmount } from "./validators";
 import { resolveForIngest } from "./contactsHelpers";
 
 export const listPending = query({
@@ -64,6 +65,7 @@ export const autoLog = mutation({
   },
   handler: async (ctx, { handle, ...args }) => {
     const owner = await requireTokenIdentifier(ctx);
+    assertValidAmount(args.amount);
 
     const existing = await ctx.db
       .query("expenses")
@@ -109,6 +111,7 @@ export const approve = mutation({
     const owner = await requireTokenIdentifier(ctx);
     const item = await ctx.db.get(queueId);
     if (!item || item.ownerTokenIdentifier !== owner) throw new Error("Not found");
+    assertValidAmount(expenseFields.amount);
 
     await ctx.db.patch(queueId, { status: "approved", reviewedAt: Date.now() });
 
