@@ -13,7 +13,7 @@ import { SmsApprovalCard, type SmsQueueItem } from "./SmsApprovalCard";
 import { mutationOf, resetConvexMock } from "../test/convexMock";
 import { expenseStore } from "../lib/expenseStorage";
 
-function parsedItem(over: Partial<SmsQueueItem> = {}): SmsQueueItem {
+function item(over: Partial<SmsQueueItem> = {}): SmsQueueItem {
   return {
     _id: "q1" as SmsQueueItem["_id"],
     rawSms: "Rs 250 debited from a/c and paid to chai@oksbi UPI Ref 123456789012",
@@ -27,22 +27,17 @@ function parsedItem(over: Partial<SmsQueueItem> = {}): SmsQueueItem {
   };
 }
 
-describe("SmsApprovalCard — parsed item (happy path)", () => {
+describe("SmsApprovalCard", () => {
   beforeEach(() => {
     resetConvexMock();
     localStorage.clear();
     expenseStore._syncFromServer([]);
   });
 
-  it("approves a confidently-parsed SMS with the entered note + category", async () => {
+  it("saves a confidently-parsed SMS with the prefilled amount/direction", async () => {
     const user = userEvent.setup();
-    render(<SmsApprovalCard item={parsedItem()} />);
+    render(<SmsApprovalCard item={item()} />);
 
-    // Primary action is enabled when an amount was parsed.
-    const addBtn = screen.getByRole("button", { name: /add as expense/i });
-    expect(addBtn).toBeEnabled();
-
-    await user.click(addBtn);
     await user.click(screen.getByRole("button", { name: /save expense/i }));
 
     const approve = mutationOf(api.smsQueue.approve);
@@ -56,26 +51,52 @@ describe("SmsApprovalCard — parsed item (happy path)", () => {
     });
   });
 
+  it("lets the user complete an UNPARSED SMS by hand (the dead-end fix)", async () => {
+    const user = userEvent.setup();
+    // No amount and no direction parsed — exactly what reaches the queue.
+    render(
+      <SmsApprovalCard
+        item={item({ parsedAmount: undefined, parsedDirection: undefined, parsedUpiRef: undefined })}
+      />
+    );
+
+    // Save is disabled until an amount is entered — but the field exists.
+    const save = screen.getByRole("button", { name: /save expense/i });
+    expect(save).toBeDisabled();
+
+    await user.type(screen.getByLabelText(/amount/i), "320");
+    // Default direction is debit; switch to received to prove the toggle works.
+    await user.click(screen.getByRole("button", { name: /received/i }));
+
+    expect(save).toBeEnabled();
+    await user.click(save);
+
+    const approve = mutationOf(api.smsQueue.approve);
+    expect(approve).toHaveBeenCalledTimes(1);
+    expect(approve.mock.calls[0][0]).toMatchObject({
+      queueId: "q1",
+      amount: 32000,
+      direction: "credit",
+    });
+  });
+
+  it("keeps Save disabled when the amount is empty", () => {
+    render(<SmsApprovalCard item={item({ parsedAmount: undefined })} />);
+    expect(screen.getByRole("button", { name: /save expense/i })).toBeDisabled();
+  });
+
   it("rejects via the reject mutation", async () => {
     const user = userEvent.setup();
-    render(<SmsApprovalCard item={parsedItem()} />);
-
+    render(<SmsApprovalCard item={item()} />);
     await user.click(screen.getByRole("button", { name: /^reject$/i }));
-
-    const reject = mutationOf(api.smsQueue.reject);
-    expect(reject).toHaveBeenCalledTimes(1);
-    expect(reject.mock.calls[0][0]).toMatchObject({ queueId: "q1" });
+    expect(mutationOf(api.smsQueue.reject)).toHaveBeenCalledTimes(1);
+    expect(mutationOf(api.smsQueue.reject).mock.calls[0][0]).toMatchObject({ queueId: "q1" });
   });
 
   it("shows the raw SMS when expanded", async () => {
     const user = userEvent.setup();
-    render(<SmsApprovalCard item={parsedItem()} />);
+    render(<SmsApprovalCard item={item()} />);
     await user.click(screen.getByRole("button", { name: /show sms/i }));
     expect(screen.getByText(/Rs 250 debited/)).toBeInTheDocument();
   });
 });
-
-// PR3 will turn the card into a full editable form so an *unparsed* SMS (no
-// amount/direction) can be completed by hand. The red→green tests for that land
-// with the fix; recorded here so the gap is visible in the suite.
-describe.todo("SmsApprovalCard — unparsed item is completable by hand (PR3)");

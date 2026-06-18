@@ -21,6 +21,10 @@ const AMOUNT_RE = /(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i;
 const AMOUNT_NEAR_KEYWORD_RE =
   /(?:debited|credited|debit|credit|deducted|sent|paid|received|spent)\s+(?:by|with|for|of)?\s*(?:rs\.?|inr|₹)?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i;
 const UPI_REF_RE = /(?:upi\s*ref(?:erence)?\s*(?:no\.?|number)?|ref\s*no\.?)\s*[:\-]?\s*([0-9]{10,})/i;
+// Fallback for the many banks that print a bare 12-digit UPI RRN without the
+// word "no" — "UPI:4123...", "Ref 4123...", "RRN 4123...". The exact 12-digit
+// length keeps it from matching masked account numbers or amounts.
+const UPI_REF_FALLBACK_RE = /\b(?:upi|rrn|ref)[\s:./no-]*([0-9]{12})\b/i;
 const DEBIT_KEYWORDS = /(?:debited|deducted|sent|paid|payment\s+of|transferred\s+to|spent)/i;
 const CREDIT_KEYWORDS = /(?:credited|received|added|deposited|refund)/i;
 
@@ -70,11 +74,11 @@ export function parseSmsDate(text: string): string | undefined {
 }
 
 const CATEGORY_KEYWORDS: Array<[Category, RegExp]> = [
-  ["food", /zomato|swiggy|restaurant|cafe|food|dominos|mcdonald|kfc|bakery|dhaba|eatery/i],
-  ["travel", /uber|ola|rapido|irctc|petrol|fuel|hpcl|iocl|bpcl|metro|railway|indigo|airlines|toll|fastag/i],
-  ["shopping", /amazon|flipkart|myntra|ajio|meesho|store|mart|bigbasket|blinkit|zepto|dmart|reliance/i],
-  ["bills", /electricity|recharge|airtel|jio|vodafone|vi\b|broadband|dth|gas|water\s*bill|bill\s*pay|postpaid|insurance|lic\b/i],
-  ["health", /pharmacy|hospital|medical|apollo|clinic|chemist|diagnostic|pharmeasy|netmeds|1mg/i],
+  ["food", /zomato|swiggy|restaurant|cafe|food|dominos|mcdonald|kfc|bakery|dhaba|eatery|biryani|pizza|burger|faasos|eatsure|juice/i],
+  ["travel", /uber|ola|rapido|irctc|petrol|fuel|hpcl|iocl|bpcl|metro|railway|indigo|airlines|toll|fastag|redbus|makemytrip|goibibo|ixigo|yatra|bmtc|dmrc/i],
+  ["shopping", /amazon|flipkart|myntra|ajio|meesho|store|mart|bigbasket|blinkit|zepto|dmart|reliance|nykaa|tatacliq|croma|lenskart|firstcry|snapdeal|jiomart/i],
+  ["bills", /electricity|recharge|airtel|jio|vodafone|vi\b|broadband|dth|gas|water\s*bill|bill\s*pay|postpaid|insurance|lic\b|tata\s*power|adani|bescom|hathway|fiber/i],
+  ["health", /pharmacy|hospital|medical|apollo|clinic|chemist|diagnostic|pharmeasy|netmeds|1mg|medplus|practo/i],
 ];
 
 export function categorizeSms(party: string | undefined, body: string): Category {
@@ -88,7 +92,11 @@ export function categorizeSms(party: string | undefined, body: string): Category
 export function parseSms(sms: string): ParsedSms | null {
   const text = sms.trim();
 
-  const amountMatch = AMOUNT_RE.exec(text) ?? AMOUNT_NEAR_KEYWORD_RE.exec(text);
+  // Prefer the amount anchored to a transaction verb ("debited by Rs.250") over
+  // the first "Rs." in the message — that way a leading "Avbl Bal Rs.9,999" can't
+  // be mistaken for the transaction amount. Falls back to the generic match for
+  // the common "Rs.250 debited" order where the amount precedes the verb.
+  const amountMatch = AMOUNT_NEAR_KEYWORD_RE.exec(text) ?? AMOUNT_RE.exec(text);
   if (!amountMatch) return null;
   const amount = parseAmount(amountMatch);
   if (amount <= 0) return null;
@@ -99,7 +107,7 @@ export function parseSms(sms: string): ParsedSms | null {
 
   const direction = isDebit ? "debit" : "credit";
 
-  const refMatch = UPI_REF_RE.exec(text);
+  const refMatch = UPI_REF_RE.exec(text) ?? UPI_REF_FALLBACK_RE.exec(text);
   const upiRef = refMatch?.[1];
 
   const { handle, name } = extractCounterparty(text, direction);
@@ -181,6 +189,6 @@ function hash(str: string): string {
 }
 
 export function isUpiSms(sender: string, body: string): boolean {
-  const knownBanks = /hdfc|sbi|icici|axis|kotak|yes\s*bank|pnb|bob|canara|union\s*bank|idfc|au\s*bank|paytm|gpay|phonepe/i;
+  const knownBanks = /hdfc|sbi|icici|axis|kotak|yes\s*bank|pnb|bob|canara|union\s*bank|idfc|au\s*bank|paytm|gpay|phonepe|indusind|federal|rbl|bandhan|idbi|indian\s*bank|central\s*bank|uco|amazonpay|cred|slice|fi\s*money|jupiter|navi|sbm/i;
   return knownBanks.test(sender) && (DEBIT_KEYWORDS.test(body) || CREDIT_KEYWORDS.test(body));
 }
