@@ -14,6 +14,7 @@
 | M4 | Group Trip Splitter | ⏳ Pending |
 | M5 | Insights & Polish | ⏳ Pending |
 | M11 | Contacts + aliases, SMS/udhaar fixes, trip close, recurring/search/budget/insights | 📋 PRD ready |
+| M12 | Hardening: single-source-of-truth state, test net, security audit | 🔨 In Progress |
 
 > **Pivot note:** `apps/mobile/` is abandoned due to Expo dev-client USB debugging errors and Android Studio unavailability. All new work targets `apps/web/` (Vite + React PWA). The Convex backend is unchanged. UPI SMS (M3) will use a thin Capacitor wrapper around the same web app.
 
@@ -336,6 +337,31 @@ Five bugs from device testing, all in one branch:
 - [ ] Recurring radar · search/export.
 
 **Parked (appendix A):** collect & repay loop (split-from-SMS, UPI deep-link repay, borrower nudge); reminder cadence/mute; broad perf/pagination audit.
+
+---
+
+## M12: Hardening — single source of truth, test net, security 🔨
+
+**Why:** A recurring class of bugs (manual expense doesn't appear, stuck loading screen, dead-end SMS review card) all trace to **two stores fighting**: the list renders from `expenseStore` (localStorage) while Convex's reactive query is the real data, synced in awkwardly via `_syncFromServer` (full-replace race). Goal: pick one source of truth and stand up a regression net so future features don't break existing ones.
+
+**Locked decisions (grill session 2026-06-18):**
+
+- **State architecture — Convex reactive query is the single source of truth.** localStorage is demoted to a passive read-through *display cache*. Decisive reason: the server is already an independent writer the client can't observe at write time (background SMS ingest creates expenses while the app is closed; a 2nd device does too), so a local-first store can never be canonical — it would force a merge-from-server anyway. Convex-truth removes the writable local store instead of adding a merge engine.
+- **Instant add — Convex `withOptimisticUpdate`.** The `addExpense`/`deleteExpense` mutations patch the `listRecent` query result so the row renders immediately and auto-rolls-back on failure. `expenseStore.add` (the dead optimistic path) is removed. One code path, fully unit-testable with a fake Convex store.
+- **Cold-start / offline + loading gate — cache-seeded hook.** `useExpensesView()` returns `liveQuery ?? cachedSnapshot ?? []`; persist a snapshot to localStorage on every successful query. Skeleton shows **only** when there's no cache AND the query is still `undefined`. A returning/offline user with prior data never hits a blank gate. Kills the "stuck loading" bug — the gate no longer waits on a second store syncing.
+- **SMS review card — full editable mini-form.** Messages reach the review queue *because* the parser couldn't extract a confident amount/direction, yet the card's only action is disabled without one (`SmsApprovalCard` "Add as expense" `disabled={!parsedAmount}`). Card becomes an editable form (editable amount via `AmountInput`, debit/credit toggle, category, note, date), prefilled with whatever parsed, save gated on `amount>0 && direction`. **Plus: harden `smsParser` to its best** — expand bank/UPI format coverage, test-first, against real failing samples (need Raja to paste real misses).
+- **Tests — 3 layers, gating CI.** L1 pure (parser, dates, `groupByDate`, balances). L2 `convex-test` (mutations/queries incl. cross-user denial). L3 **new** React component/integration (vitest + jsdom + React Testing Library + mock Convex client): the data hook/optimistic add shows a row, the loading gate never strands a user with cache, the review card saves an unparsed SMS. No E2E (revisit later). Convention: every new mutation/hook ships with a test in the same PR; no coverage-% threshold (avoid gaming).
+- **CI gate.** `ci-test.yml` is mis-named — it only runs typecheck; `bun run test` (vitest) never runs in CI. Add a `vitest run` job so every PR runs tests + typecheck + lint, blocking merge (branch protection on `main`).
+- **Security — targeted authorization audit + fixes.** Crown jewel: no user can touch another's money. Audit every mutation/query that takes a document `_id` to confirm caller-ownership (IDOR); harden `/sms/ingest` secret (timing-safe compare, reject unknown device); verify `tripShares` token expiry/member scope; confirm no server secret (`GOOGLE_OAUTH_CLIENT_SECRET`, `FIREBASE_SERVICE_ACCOUNT`) reaches the client bundle; add amount bounds (`>0`, sane max). Back with `convex-test` cases proving user B cannot read/delete user A's rows.
+
+**Delivery — net-first, 4 sliced PRs (each off this branch, individually reviewable/revertable):**
+
+- [ ] **PR1 — Test net.** Fix `ci-test.yml` to run `vitest run`; add the React/RTL + mock-Convex setup; write characterization tests for current correct behavior **plus failing repro tests** for the three bugs (add doesn't show, infinite spinner with cache, review-card dead-end).
+- [ ] **PR2 — State refactor.** `useExpensesView` (Convex-truth + cache seed), `withOptimisticUpdate` on add/delete, new loading gate; remove the writable `expenseStore` write paths. The PR1 repro tests go green; existing tests stay green.
+- [ ] **PR3 — SMS + parser.** Editable review-card mini-form; expand `smsParser` coverage test-first against real samples.
+- [ ] **PR4 — Security.** IDOR audit + fixes across `_id`-taking functions; `/sms/ingest` + token-scope hardening; client-bundle secret check; amount bounds; deny-cross-user `convex-test` cases.
+
+**Key files:** `apps/web/src/hooks/useExpenseQueries.ts`, `useExpenseMutations.ts`, `useExpenseList.ts`, `lib/expenseStorage.ts`, `screens/ExpensesScreen.tsx`, `components/SmsApprovalCard.tsx`, `convex/smsParser.ts`, `convex/expenses.ts`, `convex/smsQueue.ts`, `convex/http.ts`, `convex/tripShares.ts`, `.github/workflows/ci-test.yml`.
 
 ---
 
