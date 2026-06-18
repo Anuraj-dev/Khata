@@ -7,6 +7,7 @@ import { formatRupees, todayIso } from "../lib/dates";
 import { expenseStore, type LocalExpense } from "../lib/expenseStorage";
 import { useExpenseList } from "../hooks/useExpenseList";
 import { useExpenseQueries } from "../hooks/useExpenseQueries";
+import { shouldShowExpenseSkeleton } from "../lib/expenseGate";
 import { useCategories } from "../hooks/useCategories";
 import { useBudget } from "../hooks/useBudget";
 import { ExpenseCard } from "../components/ExpenseCard";
@@ -129,17 +130,10 @@ export function ExpensesScreen({ isAuthenticated, onAddPress, showToast }: Props
   // Net for the day: what's left after spend vs received. Positive = up, negative = down.
   const todayNet = todayCredit - todayDebit;
 
-  // Show the loading gate only when there is genuinely nothing to display yet:
-  // - localStorage hasn't hydrated (one React tick), OR
-  // - we're empty AND either auth is still resolving or the server query is in-flight.
-  // Removing "recentExpenses.length > 0" from this check was the key fix: that
-  // condition kept the gate open even after the query resolved, waiting on a
-  // useEffect sync that could be delayed or dropped on reconnect.
-  const isExpenseBootstrapPending =
-    !isHydrated ||
-    (isEmpty && (!isAuthenticated || isRecentLoading));
-
-  if (isEmpty && isExpenseBootstrapPending) {
+  // Skeleton only when there's genuinely nothing to show and a load is in flight
+  // (see shouldShowExpenseSkeleton). A returning/offline user with cached rows —
+  // or a signed-out/resolved-empty one — never sees an indefinite spinner.
+  if (shouldShowExpenseSkeleton({ isHydrated, isEmpty, isAuthenticated, isRecentLoading })) {
     return (
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden pb-4 px-4 gap-3 pt-3">
         {[1, 2, 3, 4, 5].map((i) => (

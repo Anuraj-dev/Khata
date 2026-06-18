@@ -6,9 +6,8 @@ import { describe, it } from "vitest";
 
 describe("M12 regressions", () => {
   // PR2 — state refactor (Convex-truth + optimistic + cache-seeded gate)
-  it.todo("a manually-added expense appears in the list before the server query refetches");
-  it.todo("a returning/offline user with cached data never sees an infinite loading gate");
-  it.todo("a failed add rolls the optimistic row back out of the list");
+  //   ✓ optimisticExpenses.test.ts — added expense shows instantly; clean rollback
+  //   ✓ expenseGate.test.ts        — never strands the user on a spinner
 
   // PR3 — SMS review card
   it.todo("an unparsed SMS (no amount/direction) can be completed and saved by hand");

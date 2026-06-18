@@ -25,12 +25,6 @@ export type LocalExpense = {
   syncedId?: string;
 };
 
-function makeId(): string {
-  const maybe = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
-  if (maybe?.randomUUID) return maybe.randomUUID();
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
 function sanitize(value: unknown): LocalExpense[] {
   if (!Array.isArray(value)) return [];
   const validDirections: ExpenseDirection[] = ["debit", "credit"];
@@ -123,25 +117,6 @@ export const expenseStore = {
     listeners.add(listener);
     void ensureHydrated();
     return () => { listeners.delete(listener); };
-  },
-  async add(draft: ExpenseDraft): Promise<LocalExpense> {
-    await ensureHydrated();
-    const expense: LocalExpense = {
-      id: makeId(),
-      amount: draft.amount,
-      note: draft.note,
-      category: draft.category,
-      direction: draft.direction,
-      source: draft.source ?? "manual",
-      date: draft.date ?? todayIso(),
-      party: draft.party,
-      upiRef: draft.upiRef,
-      createdAt: Date.now(),
-    };
-    cached = [expense, ...cached];
-    persist();
-    emit();
-    return expense;
   },
   remove(id: string): void {
     const next = cached.filter((e) => e.id !== id);
