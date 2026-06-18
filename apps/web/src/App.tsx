@@ -48,6 +48,10 @@ const UdhaarPersonScreen = lazy(() =>
   import("./screens/UdhaarPersonScreen").then((m) => ({ default: m.UdhaarPersonScreen }))
 );
 import { captureJoinFromUrl, takePendingJoin } from "./lib/joinLink";
+import {
+  applyAddExpenseOptimistic,
+  applyDeleteExpenseOptimistic,
+} from "./lib/optimisticExpenses";
 import { useExpenseMutations } from "./hooks/useExpenseMutations";
 import { useRetryQueue } from "./hooks/useRetryQueue";
 import { useSmsPoller } from "./hooks/useSmsPoller";
@@ -72,9 +76,14 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
   }
 
   // Raw mutations used by the retry runner — bypass the error-handling wrapper
-  // in useExpenseMutations so the retry queue applies its own backoff logic.
-  const addExpenseMutation = useMutation(api.expenses.addExpense);
-  const deleteExpenseMutation = useMutation(api.expenses.deleteExpense);
+  // in useExpenseMutations so the retry queue applies its own backoff logic. Still
+  // optimistic so a queued write that flushes on reconnect shows immediately.
+  const addExpenseMutation = useMutation(api.expenses.addExpense).withOptimisticUpdate(
+    applyAddExpenseOptimistic
+  );
+  const deleteExpenseMutation = useMutation(api.expenses.deleteExpense).withOptimisticUpdate(
+    applyDeleteExpenseOptimistic
+  );
 
   const runRetryPayload = useCallback(async (payload: RetryPayload): Promise<void> => {
     switch (payload.type) {

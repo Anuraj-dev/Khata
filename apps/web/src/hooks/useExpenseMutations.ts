@@ -4,6 +4,10 @@ import { api } from "@convex/_generated/api";
 import { classifyError, createActionId, logger } from "../lib/logger";
 import type { RetryPayload } from "./useRetryQueue";
 import type { ExpenseDraft } from "../lib/expenseStorage";
+import {
+  applyAddExpenseOptimistic,
+  applyDeleteExpenseOptimistic,
+} from "../lib/optimisticExpenses";
 import { todayIso } from "../lib/dates";
 
 export function useExpenseMutations({
@@ -13,8 +17,16 @@ export function useExpenseMutations({
   showToast: (t: { kind: "error" | "info"; message: string }) => void;
   enqueueRetry: (item: { label: string; payload: RetryPayload }) => void;
 }) {
-  const addExpenseMutation = useMutation(api.expenses.addExpense);
-  const deleteExpenseMutation = useMutation(api.expenses.deleteExpense);
+  // Optimistic updates patch the listRecent query so a new/deleted expense shows
+  // instantly and rolls back automatically if the mutation fails. The list reads
+  // from this same query, so there's one source of truth — no local store write
+  // that could diverge from the server row.
+  const addExpenseMutation = useMutation(api.expenses.addExpense).withOptimisticUpdate(
+    applyAddExpenseOptimistic
+  );
+  const deleteExpenseMutation = useMutation(api.expenses.deleteExpense).withOptimisticUpdate(
+    applyDeleteExpenseOptimistic
+  );
 
   const addExpense = useCallback(
     async (draft: ExpenseDraft): Promise<boolean> => {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { todayIso } from "../lib/dates";
-import { expenseStore, type ExpenseCategory, type ExpenseDirection } from "../lib/expenseStorage";
+import { type ExpenseCategory, type ExpenseDirection } from "../lib/expenseStorage";
 import { AmountInput } from "./AmountInput";
 import { CategoryPicker } from "./CategoryPicker";
 
@@ -47,9 +47,10 @@ export function AddExpenseDrawer({ open, onClose, onSave }: Props) {
   async function handleSave() {
     if (paise === 0 || isSaving) return;
     setIsSaving(true);
+    // onSave issues the Convex mutation with an optimistic update, so the row is
+    // already in the list by the time this resolves — no separate local write.
     const saved = await onSave({ amount: paise, note, category, direction, date });
     if (saved) {
-      void expenseStore.add({ amount: paise, note, category, direction, date });
       reset();
       onClose();
     } else {
