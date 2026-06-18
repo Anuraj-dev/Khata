@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.13.5](https://github.com/Anuraj-dev/Khata/compare/v0.13.4...v0.13.5) (2026-06-18)
+
+
+### Bug Fixes
+
+* **expenses:** Convex query as single source of truth (M12 PR2/4) ([58a26d9](https://github.com/Anuraj-dev/Khata/commit/58a26d9d636dbd19b82e0c492f5e7b54745f2da5))
+* **expenses:** make the Convex query the single source of truth ([62c6491](https://github.com/Anuraj-dev/Khata/commit/62c6491c89a1ac6bb56350a9c6ec07f82e2e3219))
+* **sms:** editable review card + harden the UPI parser ([ccaa9e2](https://github.com/Anuraj-dev/Khata/commit/ccaa9e26a0cdb81fa3e727d559ec137811397bce))
+* **sms:** editable review card + hardened UPI parser (M12 PR3/4) ([875593f](https://github.com/Anuraj-dev/Khata/commit/875593f61439196406efd69ceefa656bd0a968de))
+
 ## [0.13.4](https://github.com/Anuraj-dev/Khata/compare/v0.13.3...v0.13.4) (2026-06-17)
 
 
