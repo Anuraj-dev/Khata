@@ -1,0 +1,33 @@
+name: Deploy Convex backend
+# The recurring outage (M6.2, M7, and the FunctionPathNotFound storm) all came
+# from the same gap: backend code was merged but never deployed, so the client
+# called functions the deployment didn't have. This couples a backend deploy to
+# every merge into main, so code and deployment can never drift again.
+#
+# Setup (one-time): create a PROD deploy key at
+#   dashboard.convex.dev → khata → prod (formal-dove-357) → Settings → Deploy Keys
+# and add it as the repo secret CONVEX_DEPLOY_KEY
+#   (Settings → Secrets and variables → Actions → New repository secret).
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "convex/**"
+      - ".github/workflows/convex-deploy.yml"
+jobs:
+  deploy:
+    name: convex deploy (prod)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Deploy functions to the prod deployment
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+        run: bunx convex deploy -y
