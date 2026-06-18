@@ -5,8 +5,8 @@ on:
     branches:
       - main
 jobs:
-  typecheck-web:
-    name: Typecheck (web)
+  test:
+    name: Vitest (convex + web)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -16,6 +16,5 @@ jobs:
           bun-version: latest
       - name: Install dependencies
         run: bun install --frozen-lockfile
-      - name: Typecheck
-        working-directory: apps/web
-        run: bun run typecheck
+      - name: Run tests
+        run: bun run test
