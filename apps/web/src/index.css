@@ -140,6 +140,77 @@ html, body {
   }
 }
 
+/* ─── Landing redesign ─────────────────────────────────────────────
+   Top-anchored amber spotlight + faded dot grid. Static (no JS, no
+   animation) so it's cheap; lives only behind the hero, rest stays
+   clean dark. Content must sit in a relative z-10 wrapper above these. */
+.hero-spotlight {
+  position: relative;
+  overflow: hidden;
+}
+.hero-spotlight::before {
+  /* faint dotted grid, masked so it fades out below the fold */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.05) 1px, transparent 1.4px);
+  background-size: 26px 26px;
+  -webkit-mask-image: radial-gradient(110% 70% at 50% 0%, #000 0%, transparent 65%);
+  mask-image: radial-gradient(110% 70% at 50% 0%, #000 0%, transparent 65%);
+  pointer-events: none;
+}
+.hero-spotlight::after {
+  /* two stacked amber radials: a tight strong core + a wide soft wash */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(55% 45% at 50% -8%, rgba(245, 158, 11, 0.24) 0%, transparent 60%),
+    radial-gradient(120% 70% at 50% -10%, rgba(245, 158, 11, 0.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* Feature card: dark surface, border brightens on hover, with a single
+   diagonal light sweep that runs only on hover (not a looping shimmer).
+   Reduced-motion users get the border change without the sweep. */
+.feat-card {
+  position: relative;
+  overflow: hidden;
+  background: var(--gradient-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  transition:
+    border-color var(--dur-mid) var(--ease-out),
+    transform var(--dur-mid) var(--ease-out);
+}
+.feat-card:hover {
+  border-color: var(--color-border-default);
+  transform: translateY(-2px);
+}
+.feat-card > * {
+  position: relative;
+  z-index: 1;
+}
+.feat-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.06) 50%,
+    transparent 70%
+  );
+  transform: translateX(-120%);
+  transition: transform 700ms var(--ease-out);
+  pointer-events: none;
+}
+.feat-card:hover::after {
+  transform: translateX(120%);
+}
+
 /* Honor reduced-motion globally — covers landing animations + existing transitions */
 @media (prefers-reduced-motion: reduce) {
   *,

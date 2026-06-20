@@ -31,9 +31,10 @@ export function LandingScreen() {
 
   return (
     <div className="landing-scroll" style={{ background: "var(--color-bg)" }}>
-      {/* Ambient hero glow */}
-      <div style={{ background: "var(--gradient-hero)" }}>
-        <div className="pt-safe">
+      {/* Hero owns the amber spotlight + dot-grid backdrop */}
+      <div className="hero-spotlight pt-safe">
+        <div className="relative z-10">
+          <Nav loading={loading} onSignIn={handleSignIn} />
           <Hero
             loading={loading}
             error={error}
@@ -51,6 +52,27 @@ export function LandingScreen() {
   );
 }
 
+/* ─────────────────────────── Nav ─────────────────────────── */
+
+function Nav({ loading, onSignIn }: { loading: boolean; onSignIn: () => void }) {
+  return (
+    <nav className="mx-auto flex w-full max-w-screen-lg items-center justify-between px-5 pt-5">
+      <span className="flex items-center gap-2">
+        <BrandMark size={28} />
+        <span
+          className="text-base font-semibold tracking-tight"
+          style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}
+        >
+          Khata
+        </span>
+      </span>
+      <Button variant="secondary" size="sm" loading={loading} onClick={onSignIn}>
+        Sign in
+      </Button>
+    </nav>
+  );
+}
+
 /* ─────────────────────────── Hero ─────────────────────────── */
 
 function Hero({
@@ -65,25 +87,31 @@ function Hero({
   onHowItWorks: () => void;
 }) {
   return (
-    <header className="mx-auto w-full max-w-screen-lg px-5 pt-10 pb-12 lg:pt-16 lg:pb-20">
+    <header className="mx-auto w-full max-w-screen-lg px-5 pt-10 pb-12 lg:pt-14 lg:pb-20">
       <div className="flex flex-col items-center gap-12 lg:flex-row lg:items-center lg:gap-16">
         {/* Copy */}
         <div
           className="flex w-full flex-col items-center text-center lg:items-start lg:text-left"
           style={{ animation: "khata-rise var(--dur-slow) var(--ease-out) both" }}
         >
-          <span className="flex items-center gap-2">
-            <BrandMark size={32} />
+          {/* Pill badge */}
+          <span
+            className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium"
+            style={{
+              background: "var(--color-accent-subtle)",
+              border: "1px solid var(--color-accent-border)",
+              color: "var(--color-accent)",
+            }}
+          >
             <span
-              className="text-base font-semibold tracking-tight"
-              style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}
-            >
-              Khata
-            </span>
+              className="h-1.5 w-1.5 rounded-full"
+              style={{ background: "var(--color-accent)" }}
+            />
+            UPI-aware · Private · On your device
           </span>
 
           <h1
-            className="mt-4 text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl"
+            className="mt-5 text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl"
             style={{ color: "var(--color-text-primary)" }}
           >
             Split trips.
@@ -318,21 +346,14 @@ function Features() {
       </h2>
       <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2">
         {FEATURES.map((f) => (
-          <div
-            key={f.title}
-            className="flex flex-col gap-3 p-6"
-            style={{
-              background: "var(--gradient-surface)",
-              borderRadius: "var(--radius-lg)",
-              border: "1px solid var(--color-border-subtle)",
-              boxShadow: "var(--shadow-card)",
-            }}
-          >
+          <div key={f.title} className="feat-card flex flex-col gap-3 p-6">
+            {/* Ringed icon badge */}
             <span
               className="flex h-11 w-11 items-center justify-center"
               style={{
                 borderRadius: "var(--radius-md)",
                 background: "var(--color-accent-bg)",
+                border: "1px solid var(--color-accent-border)",
                 color: "var(--color-accent)",
               }}
             >
