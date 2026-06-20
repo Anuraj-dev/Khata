@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.14.0](https://github.com/Anuraj-dev/Khata/compare/v0.13.5...v0.14.0) (2026-06-20)
+
+
+### Features
+
+* **web:** redesign landing page with spotlight hero and shimmer cards ([7acf297](https://github.com/Anuraj-dev/Khata/commit/7acf2972a1ff50c38d3f011343454c4da7768cb2))
+* **web:** redesign landing page with spotlight hero and shimmer cards ([d718bdf](https://github.com/Anuraj-dev/Khata/commit/d718bdf357af57ee0eea6914e0eeeac45f2a3834))
+
 ## [0.13.5](https://github.com/Anuraj-dev/Khata/compare/v0.13.4...v0.13.5) (2026-06-18)
 
 
