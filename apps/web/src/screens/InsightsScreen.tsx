@@ -2,88 +2,133 @@ import { useMemo, useState } from "react";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Doc } from "@convex/_generated/dataModel";
-import { formatRupees, toIsoDate } from "../lib/dates";
+import { formatRupees } from "../lib/dates";
+import {
+  INSIGHTS_MONTHS,
+  categorySpendDeltas,
+  insightsRange,
+  lastTwelveMonthKeys,
+  type CategorySpendDelta,
+} from "../lib/insightsMath";
 import { useCategories } from "../hooks/useCategories";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
+import { dedupeByClientId } from "../lib/expenseStorage";
 import { ChevronLeft, ChevronRight } from "../components/icons";
 import { Sheet } from "../components/Sheet";
 
-const MONTHS_BACK = 6;
-
-function monthKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
 function monthName(year: number, month0: number): string {
   return new Date(year, month0, 1).toLocaleString("en-IN", { month: "long", year: "numeric" });
+}
+
+function formatDeltaPct(deltaPct: number | null): string {
+  if (deltaPct === null) return "—";
+  return `${deltaPct > 0 ? "+" : ""}${deltaPct}%`;
+}
+
+function deltaColor(deltaPct: number | null): string {
+  if (deltaPct === null || deltaPct === 0) return "var(--color-text-muted)";
+  return deltaPct > 0 ? "var(--color-debit)" : "var(--color-credit)";
+}
+
+function deltaSpoken(deltaPct: number | null): string {
+  if (deltaPct === null) return "no previous month to compare";
+  if (deltaPct === 0) return "same as last month";
+  return deltaPct > 0
+    ? `up ${deltaPct} percent from last month`
+    : `down ${-deltaPct} percent from last month`;
 }
 
 type Drill = { title: string; items: Doc<"expenses">[] } | null;
 
 export function InsightsScreen() {
-  const now = new Date();
+  // Freeze "today" for the life of this mount so the 12-month window, current-month
+  // daily average, and projected month-end don't shift mid-session.
+  const [today] = useState(() => new Date());
   const [offset, setOffset] = useState(0); // 0 = current month, negative = older
   const [drill, setDrill] = useState<Drill>(null);
-  const { isAuthenticated } = useConvexAuth();
+  const { isLoading: authLoading, isAuthenticated } = useConvexAuth();
   const { resolve } = useCategories();
+  const online = useOnlineStatus();
 
-  const windowStart = toIsoDate(new Date(now.getFullYear(), now.getMonth() - (MONTHS_BACK - 1), 1));
-  const windowEnd = toIsoDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+  const monthKeys = useMemo(() => lastTwelveMonthKeys(today), [today]);
+  const { start: windowStart, end: windowEnd } = useMemo(() => insightsRange(today), [today]);
   const expenses = useQuery(
     api.expenses.listRange,
     isAuthenticated ? { start: windowStart, end: windowEnd } : "skip"
   );
 
+  // Same clientId collapse as Home, so a retried insert cannot inflate the year.
+  const ledger = useMemo(
+    () => (expenses === undefined ? undefined : dedupeByClientId(expenses)),
+    [expenses],
+  );
+
   const buckets = useMemo(() => {
-    const list: { key: string; year: number; month0: number; debit: number; credit: number }[] = [];
-    for (let i = MONTHS_BACK - 1; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      list.push({ key: monthKey(d), year: d.getFullYear(), month0: d.getMonth(), debit: 0, credit: 0 });
-    }
+    const list = monthKeys.map((key) => {
+      const [year, month] = key.split("-").map(Number);
+      return { key, year, month0: month - 1, debit: 0, credit: 0 };
+    });
     const byKey = new Map(list.map((b) => [b.key, b]));
-    for (const e of expenses ?? ([] as Doc<"expenses">[])) {
+    for (const e of ledger ?? ([] as Doc<"expenses">[])) {
       const b = byKey.get(e.date.slice(0, 7));
       if (!b) continue;
       if (e.direction === "debit") b.debit += e.amount;
       else b.credit += e.amount;
     }
     return list;
-  }, [expenses, now]);
+  }, [ledger, monthKeys]);
 
   const selectedIndex = buckets.length - 1 + offset;
   const selected = buckets[selectedIndex];
   const isCurrentMonth = offset === 0;
 
-  // One pass over the selected month's rows: category sums, merchant sums, and a
-  // cash-vs-UPI split (manual entries ≈ cash, SMS ≈ UPI).
+  // One pass over the selected month's rows: merchants + cash-vs-UPI. Category
+  // sums (with vs-last-month delta) come from categorySpendDeltas over the window.
   const month = useMemo(() => {
-    const rows = (expenses ?? ([] as Doc<"expenses">[])).filter(
+    const rows = (ledger ?? ([] as Doc<"expenses">[])).filter(
       (e) => selected && e.date.slice(0, 7) === selected.key
     );
-    const debits = rows.filter((e) => e.direction === "debit");
-    const catSums = new Map<string, number>();
     const merchantSums = new Map<string, number>();
     let cash = 0;
     let upi = 0;
-    for (const e of debits) {
-      catSums.set(e.category, (catSums.get(e.category) ?? 0) + e.amount);
+    for (const e of rows) {
+      if (e.direction !== "debit") continue;
       const key = e.party || e.note || resolve(e.category).label;
       merchantSums.set(key, (merchantSums.get(key) ?? 0) + e.amount);
       if (e.source === "sms") upi += e.amount;
       else cash += e.amount;
     }
+    const prevKey = selectedIndex > 0 ? buckets[selectedIndex - 1].key : null;
+    const categories: CategorySpendDelta[] = selected
+      ? categorySpendDeltas(ledger ?? [], selected.key, prevKey)
+      : [];
     return {
       rows,
-      categories: [...catSums.entries()].sort((a, b) => b[1] - a[1]),
+      categories,
       merchants: [...merchantSums.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6),
       cash,
       upi,
     };
-  }, [expenses, selected, resolve]);
+  }, [ledger, selected, selectedIndex, buckets, resolve]);
 
+  const offline = !online;
   if (expenses === undefined) {
+    // Skipped query (signed out) or an offline shell must not look like a load.
+    // Spinner only while auth is resolving online, or an authenticated fetch is in flight.
+    const waitingOnAuth = authLoading && !offline && !isAuthenticated;
+    const waitingOnQuery = isAuthenticated && !offline;
+    if (waitingOnAuth || waitingOnQuery) {
+      return <InsightsStatus>Loading…</InsightsStatus>;
+    }
     return (
-      <div className="flex flex-1 items-center justify-center" style={{ color: "var(--color-text-muted)" }}>
-        <span className="text-sm">Loading…</span>
-      </div>
+      <InsightsUnavailable
+        title={offline ? "You're offline" : "Insights unavailable"}
+        body={
+          offline
+            ? "Connect to load a year of spending, daily averages, and how each category changed."
+            : "Sign in to see a year of spending, daily averages, and how each category changed."
+        }
+      />
     );
   }
 
@@ -93,11 +138,11 @@ export function InsightsScreen() {
   const momPct = prevDebit && prevDebit > 0 ? Math.round(((debit - prevDebit) / prevDebit) * 100) : null;
 
   const daysInMonth = selected ? new Date(selected.year, selected.month0 + 1, 0).getDate() : 30;
-  const daysElapsed = isCurrentMonth ? now.getDate() : daysInMonth;
+  const daysElapsed = isCurrentMonth ? today.getDate() : daysInMonth;
   const dailyAvg = daysElapsed > 0 ? Math.round(debit / daysElapsed) : 0;
   const projected = isCurrentMonth && daysElapsed > 0 ? Math.round((debit / daysElapsed) * daysInMonth) : null;
 
-  const catTotal = month.categories.reduce((s, [, v]) => s + v, 0);
+  const catTotal = month.categories.reduce((s, c) => s + c.amount, 0);
   const maxTrend = Math.max(1, ...buckets.map((b) => b.debit));
 
   // Tap a category/merchant → that month's matching transactions.
@@ -121,9 +166,9 @@ export function InsightsScreen() {
       {/* Month switcher */}
       <div className="flex items-center justify-between px-4 pt-4 pb-3">
         <button
-          onClick={() => setOffset((o) => Math.max(o - 1, -(MONTHS_BACK - 1)))}
+          onClick={() => setOffset((o) => Math.max(o - 1, -(INSIGHTS_MONTHS - 1)))}
           disabled={selectedIndex <= 0}
-          className="flex h-10 w-10 items-center justify-center disabled:opacity-30"
+          className="flex h-11 w-11 items-center justify-center disabled:opacity-30"
           style={{ color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer" }}
           aria-label="Previous month"
         >
@@ -135,7 +180,7 @@ export function InsightsScreen() {
         <button
           onClick={() => setOffset((o) => Math.min(o + 1, 0))}
           disabled={offset >= 0}
-          className="flex h-10 w-10 items-center justify-center disabled:opacity-30"
+          className="flex h-11 w-11 items-center justify-center disabled:opacity-30"
           style={{ color: "var(--color-text-secondary)", background: "none", border: "none", cursor: "pointer" }}
           aria-label="Next month"
         >
@@ -188,7 +233,7 @@ export function InsightsScreen() {
         </div>
       )}
 
-      {/* Where it went — donut + tappable legend */}
+      {/* Where it went — donut + tappable legend with vs-last-month delta */}
       <div className="px-4 mt-6">
         <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--color-text-muted)" }}>
           Where it went
@@ -198,28 +243,37 @@ export function InsightsScreen() {
             No spending this month.
           </p>
         ) : (
-          <div className="flex items-center gap-4">
+          <div className="flex items-start gap-4">
             <Donut
-              segments={month.categories.map(([cat, v]) => ({ value: v, color: resolve(cat).color }))}
+              segments={month.categories.map((c) => ({ value: c.amount, color: resolve(c.category).color }))}
               total={catTotal}
             />
-            <div className="flex flex-1 flex-col gap-2 min-w-0">
-              {month.categories.slice(0, 5).map(([cat, amount]) => {
-                const meta = resolve(cat);
-                const pct = catTotal > 0 ? Math.round((amount / catTotal) * 100) : 0;
+            <div className="flex flex-1 flex-col gap-2 min-w-0 pt-1">
+              {month.categories.map((row) => {
+                const meta = resolve(row.category);
+                const pct = catTotal > 0 ? Math.round((row.amount / catTotal) * 100) : 0;
                 return (
                   <button
-                    key={cat}
-                    onClick={() => openCategory(cat)}
+                    key={row.category}
+                    onClick={() => openCategory(row.category)}
                     className="flex items-center justify-between gap-2 text-sm"
                     style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                    aria-label={`${meta.label}, ${pct} percent of spending, ${deltaSpoken(row.deltaPct)}`}
                   >
                     <span className="flex items-center gap-1.5 min-w-0" style={{ color: "var(--color-text-secondary)" }}>
                       <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: meta.color }} />
                       <span className="truncate">{meta.label}</span>
                     </span>
-                    <span className="tabular-nums shrink-0" style={{ color: "var(--color-text-muted)", fontFamily: "var(--font-mono)" }}>
-                      {pct}%
+                    <span className="flex items-center gap-2 shrink-0">
+                      <span
+                        className="tabular-nums text-xs min-w-[2.75rem] text-right"
+                        style={{ color: deltaColor(row.deltaPct), fontFamily: "var(--font-mono)" }}
+                      >
+                        {formatDeltaPct(row.deltaPct)}
+                      </span>
+                      <span className="tabular-nums shrink-0" style={{ color: "var(--color-text-muted)", fontFamily: "var(--font-mono)" }}>
+                        {pct}%
+                      </span>
                     </span>
                   </button>
                 );
@@ -255,10 +309,10 @@ export function InsightsScreen() {
         </div>
       )}
 
-      {/* 6-month spend trend — line chart */}
+      {/* 12-month spend trend — line chart */}
       <div className="px-4 mt-8">
         <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--color-text-muted)" }}>
-          Last {MONTHS_BACK} months
+          Last {INSIGHTS_MONTHS} months
         </h3>
         <TrendLine buckets={buckets} maxTrend={maxTrend} selectedIndex={selectedIndex} onSelect={(i) => setOffset(i - (buckets.length - 1))} />
       </div>
@@ -295,6 +349,45 @@ export function InsightsScreen() {
           </div>
         )}
       </Sheet>
+    </div>
+  );
+}
+
+function InsightsStatus({ children }: { children: string }) {
+  return (
+    <div
+      className="flex flex-1 items-center justify-center"
+      style={{ color: "var(--color-text-muted)" }}
+      role="status"
+      aria-live="polite"
+    >
+      <span className="text-sm">{children}</span>
+    </div>
+  );
+}
+
+function InsightsUnavailable({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="flex flex-col flex-1 min-h-0 items-center justify-center gap-3 px-8 pb-24 text-center">
+      <span
+        className="flex h-16 w-16 items-center justify-center text-2xl font-bold"
+        style={{
+          borderRadius: "var(--radius-xl)",
+          background: "var(--gradient-hero), var(--color-surface)",
+          color: "var(--color-accent)",
+          fontFamily: "var(--font-mono)",
+          boxShadow: "inset 0 0 0 1px var(--color-accent-border)",
+        }}
+        aria-hidden
+      >
+        ₹
+      </span>
+      <p className="text-base font-semibold" style={{ color: "var(--color-text-primary)" }}>
+        {title}
+      </p>
+      <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
+        {body}
+      </p>
     </div>
   );
 }
@@ -402,7 +495,14 @@ function TrendLine({
 
   return (
     <div>
-      <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: "block" }}>
+      <svg
+        width="100%"
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="none"
+        style={{ display: "block" }}
+        role="img"
+        aria-label={`Spend over the last ${n} months`}
+      >
         <polyline points={line} fill="none" stroke="var(--color-accent)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
         {buckets.map((b, i) => (
           <circle
@@ -413,20 +513,34 @@ function TrendLine({
             fill={i === selectedIndex ? "var(--color-accent)" : "var(--color-surface)"}
             stroke="var(--color-accent)"
             strokeWidth={1.5}
+            onClick={() => onSelect(i)}
+            style={{ cursor: "pointer" }}
           />
         ))}
       </svg>
       <div className="flex justify-between mt-1">
-        {buckets.map((b, i) => (
-          <button
-            key={b.key}
-            onClick={() => onSelect(i)}
-            className="flex-1 text-[10px]"
-            style={{ background: "none", border: "none", cursor: "pointer", color: i === selectedIndex ? "var(--color-accent)" : "var(--color-text-muted)" }}
-          >
-            {new Date(b.year, b.month0, 1).toLocaleString("en-IN", { month: "short" })}
-          </button>
-        ))}
+        {buckets.map((b, i) => {
+          const short = new Date(b.year, b.month0, 1).toLocaleString("en-IN", { month: "short" });
+          const showLabel = i === selectedIndex || i === 0 || i === n - 1 || i % 2 === 0;
+          return (
+            <button
+              key={b.key}
+              onClick={() => onSelect(i)}
+              className="flex-1 min-w-0 py-2 text-[10px] leading-none"
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: i === selectedIndex ? "var(--color-accent)" : "var(--color-text-muted)",
+                fontWeight: i === selectedIndex ? 600 : 400,
+              }}
+              aria-label={monthName(b.year, b.month0)}
+              aria-current={i === selectedIndex ? "true" : undefined}
+            >
+              {showLabel ? short : ""}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
