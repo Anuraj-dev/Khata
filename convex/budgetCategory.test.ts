@@ -1,9 +1,10 @@
 import { convexTest } from "convex-test";
 import { describe, it, expect } from "vitest";
 import schema from "./schema";
+import { convexTestModules } from "./testModules";
 import { api, internal } from "./_generated/api";
 
-const modules = import.meta.glob("./**/!(*.test).ts");
+const modules = convexTestModules();
 const ID = { tokenIdentifier: "test|alice", subject: "alice", issuer: "test" };
 const istToday = () => new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
 

@@ -1,13 +1,13 @@
 import { convexTest } from "convex-test";
 import { describe, it, expect } from "vitest";
 import schema from "./schema";
+import { convexTestModules } from "./testModules";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
 // Seam 2: exercise the real Convex functions against an in-memory DB. We assert
 // external behaviour — the udhaar balances a user would see — not internals.
-
-const modules = import.meta.glob("./**/!(*.test).ts");
+const modules = convexTestModules();
 const ID = { tokenIdentifier: "test|alice", subject: "alice", issuer: "test" };
 const SENDER = "HDFCBANK";
 
