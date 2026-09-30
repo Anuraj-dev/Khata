@@ -1,14 +1,14 @@
 import { convexTest } from "convex-test";
 import { describe, it, expect } from "vitest";
 import schema from "./schema";
+import { convexTestModules } from "./testModules";
 import { api, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 
 // Authorization + input-validation guarantees. These lock the "no user can touch
 // another's money" contract so a future refactor can't silently reintroduce an
 // IDOR, and prove amounts can't be poisoned with garbage values.
-
-const modules = import.meta.glob("./**/!(*.test).ts");
+const modules = convexTestModules();
 const ALICE = { tokenIdentifier: "test|alice", subject: "alice", issuer: "test" };
 const BOB = { tokenIdentifier: "test|bob", subject: "bob", issuer: "test" };
 
@@ -126,6 +126,82 @@ describe("amount validation", () => {
     await expect(
       t.withIdentity(ALICE).mutation(api.expenses.addExpense, { ...base, amount: 25000 })
     ).resolves.toBeDefined();
+  });
+});
+
+describe("addExpense clientId idempotency", () => {
+  const args = {
+    clientId: "idem-1",
+    amount: 4200,
+    note: "chai",
+    category: "food",
+    source: "manual" as const,
+    direction: "debit" as const,
+    date: "2026-06-18",
+  };
+
+  it("returns the same id and leaves one row when clientId is reused", async () => {
+    const t = convexTest(schema, modules);
+    const asAlice = t.withIdentity(ALICE);
+    const first = await asAlice.mutation(api.expenses.addExpense, args);
+    const second = await asAlice.mutation(api.expenses.addExpense, {
+      ...args,
+      note: "chai again",
+      amount: 4300,
+    });
+    expect(second).toBe(first);
+
+    const rows = await t.run(async (ctx) => ctx.db.query("expenses").collect());
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?._id).toBe(first);
+    expect(rows[0]?.amount).toBe(4200);
+    expect(rows[0]?.note).toBe("chai");
+  });
+
+  it("returns an existing id and does not insert when that clientId is already duplicated", async () => {
+    const t = convexTest(schema, modules);
+    const baseRow = {
+      clientId: "dup-already",
+      amount: 1000,
+      category: "food" as const,
+      source: "manual" as const,
+      direction: "debit" as const,
+      date: "2026-06-18",
+      ownerTokenIdentifier: ALICE.tokenIdentifier,
+    };
+    const [firstId, secondId] = await t.run(async (ctx) => {
+      const now = Date.now();
+      const a = await ctx.db.insert("expenses", {
+        ...baseRow,
+        note: "a",
+        createdAt: now,
+        updatedAt: now,
+      });
+      const b = await ctx.db.insert("expenses", {
+        ...baseRow,
+        note: "b",
+        createdAt: now + 1,
+        updatedAt: now + 1,
+      });
+      return [a, b] as const;
+    });
+
+    const returned = await t.withIdentity(ALICE).mutation(api.expenses.addExpense, {
+      ...args,
+      clientId: "dup-already",
+    });
+    expect([firstId, secondId]).toContain(returned);
+    const rows = await t.run(async (ctx) => ctx.db.query("expenses").collect());
+    expect(rows).toHaveLength(2);
+  });
+
+  it("does not reuse another owner's row when clientIds match", async () => {
+    const t = convexTest(schema, modules);
+    const aliceId = await t.withIdentity(ALICE).mutation(api.expenses.addExpense, args);
+    const bobId = await t.withIdentity(BOB).mutation(api.expenses.addExpense, args);
+    expect(bobId).not.toBe(aliceId);
+    const rows = await t.run(async (ctx) => ctx.db.query("expenses").collect());
+    expect(rows).toHaveLength(2);
   });
 });
 

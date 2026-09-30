@@ -20,7 +20,7 @@ export function useExpenseMutations({
   // Optimistic updates patch the listRecent query so a new/deleted expense shows
   // instantly and rolls back automatically if the mutation fails. The list reads
   // from this same query, so there's one source of truth — no local store write
-  // that could diverge from the server row.
+  // that could diverge from the server row. A retry reuses that same clientId.
   const addExpenseMutation = useMutation(api.expenses.addExpense).withOptimisticUpdate(
     applyAddExpenseOptimistic
   );
@@ -31,18 +31,20 @@ export function useExpenseMutations({
   const addExpense = useCallback(
     async (draft: ExpenseDraft): Promise<boolean> => {
       const actionId = createActionId("add_expense");
+      const clientId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const date = draft.date ?? todayIso();
+      const expense = {
+        clientId,
+        amount: draft.amount,
+        note: draft.note,
+        category: draft.category,
+        direction: draft.direction,
+        date,
+        party: draft.party,
+        upiRef: draft.upiRef,
+      };
       try {
-        await addExpenseMutation({
-          clientId: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          amount: draft.amount,
-          note: draft.note,
-          category: draft.category,
-          source: draft.source ?? "manual",
-          direction: draft.direction,
-          date: draft.date ?? todayIso(),
-          party: draft.party,
-          upiRef: draft.upiRef,
-        });
+        await addExpenseMutation({ ...expense, source: draft.source ?? "manual" });
         logger.info("add_expense_succeeded", { actionId });
         return true;
       } catch (error) {
@@ -50,17 +52,7 @@ export function useExpenseMutations({
         if (isOffline) {
           enqueueRetry({
             label: `Add ₹${(draft.amount / 100).toFixed(2)} expense`,
-            payload: {
-              type: "addExpense",
-              clientId: `retry-${Date.now()}`,
-              amount: draft.amount,
-              note: draft.note,
-              category: draft.category,
-              direction: draft.direction,
-              date: draft.date ?? todayIso(),
-              party: draft.party,
-              upiRef: draft.upiRef,
-            },
+            payload: { type: "addExpense", ...expense },
           });
           showToast({ kind: "error", message: "Offline. Expense queued for sync." });
         } else {

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { authClient } from "../lib/auth-client";
-import { expenseStore } from "../lib/expenseStorage";
+import { wipeLocalState } from "../lib/expenseStorage";
 import { clearSmsBackground, peekDeviceSecret } from "../lib/smsBackground";
 import { requireDeviceAuth } from "../lib/deviceAuth";
 import { useCategories } from "../hooks/useCategories";
@@ -36,7 +36,7 @@ export function SettingsScreen({ showToast }: Props) {
     setExpenseBusy(true);
     try {
       const { deleted } = await clearAllExpenses({});
-      expenseStore.clearAllLocal();
+      wipeLocalState();
       setTypedExpenseConfirm(null);
       showToast({ kind: "info", message: `Cleared ${deleted} expense${deleted === 1 ? "" : "s"}.` });
       navigate("/");
@@ -121,7 +121,7 @@ export function SettingsScreen({ showToast }: Props) {
       }
       await clearSmsBackground();
       await authClient.signOut();
-      expenseStore.clearAllLocal();
+      wipeLocalState();
       window.location.href = "/";
     } catch {
       showToast({ kind: "error", message: "Couldn't sign out." });

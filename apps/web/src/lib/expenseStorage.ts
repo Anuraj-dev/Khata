@@ -1,7 +1,12 @@
 import { classifyError, logger } from "./logger";
 import { todayIso } from "./dates";
+import { RETRY_QUEUE_STORAGE_KEY } from "./retry-queue-utils";
 
 const STORAGE_KEY = "khata_expenses_v1";
+const LEDGER_OWNER_KEY = "khata_ledger_owner_v1";
+
+/** Last authenticated account. Used only to notice a switch. */
+export const LAST_USER_ID_KEY = "khata_last_user_id";
 
 // Category id — one of the built-ins or a user-defined slug from the `categories`
 // table. Kept as a plain string so custom categories round-trip without churn.
@@ -32,6 +37,8 @@ function sanitize(value: unknown): LocalExpense[] {
   for (const entry of value) {
     if (!entry || typeof entry !== "object") continue;
     const e = entry as Record<string, unknown>;
+    // Drop rows the removed offline-ledger experiment stored before they synced.
+    if (e.pending === true) continue;
     if (
       typeof e.id !== "string" ||
       typeof e.amount !== "number" ||
@@ -59,12 +66,48 @@ function sanitize(value: unknown): LocalExpense[] {
   return out;
 }
 
+/** Better-auth session payload → stable account id, or null when signed out. */
+export function sessionUserId(data: unknown): string | null {
+  if (!data || typeof data !== "object") return null;
+  const user = (data as { user?: unknown }).user;
+  if (!user || typeof user !== "object") return null;
+  const id = (user as { id?: unknown }).id;
+  return typeof id === "string" && id.length > 0 ? id : null;
+}
+
+/** Home stamps rows with Convex `_creationTime`. Search orders by that, never a missing `createdAt`. */
+export function expenseCreationTime(row: { _creationTime?: number }): number {
+  return typeof row._creationTime === "number" && Number.isFinite(row._creationTime)
+    ? row._creationTime
+    : 0;
+}
+
+function dedupeByKey<T>(rows: readonly T[], keyOf: (row: T) => string): T[] {
+  const out: T[] = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    const key = keyOf(row);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  return out;
+}
+
+/** First row wins. Home, Insights, and Search share this so a retried clientId cannot double-count. */
+export function dedupeByClientId<T extends { clientId?: string | null; _id?: string }>(
+  rows: readonly T[],
+): T[] {
+  return dedupeByKey(rows, (row) => (row.clientId ? `client:${row.clientId}` : `id:${row._id ?? ""}`));
+}
+
 type Listener = () => void;
 
 let cached: LocalExpense[] = [];
 let hydrated = false;
 let hydratingPromise: Promise<void> | null = null;
 const listeners = new Set<Listener>();
+const wipeListeners = new Set<Listener>();
 
 function emit() { for (const l of listeners) l(); }
 
@@ -143,13 +186,50 @@ export const expenseStore = {
     hydratingPromise = null;
     emit();
   },
-  // Wipes local expenses AND persisted storage (used by "clear all data"). Unlike
-  // reset(), it stays hydrated and clears localStorage so stale data can't reload.
-  clearAllLocal(): void {
-    cached = [];
-    hydrated = true;
-    hydratingPromise = null;
-    persist();
-    emit();
-  },
 };
+
+function isDeviceLedgerKey(key: string): boolean {
+  return (
+    key === STORAGE_KEY ||
+    key.startsWith(`${STORAGE_KEY}:`) ||
+    key === RETRY_QUEUE_STORAGE_KEY ||
+    key.startsWith(`${RETRY_QUEUE_STORAGE_KEY}:`) ||
+    key === LEDGER_OWNER_KEY
+  );
+}
+
+export function onLocalStateWipe(listener: Listener): () => void {
+  wipeListeners.add(listener);
+  return () => { wipeListeners.delete(listener); };
+}
+
+/** Drop the on-device ledger and every retry queue, including owner-scoped leftovers. */
+export function wipeLocalState(): void {
+  try {
+    const doomed: string[] = [];
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (key && isDeviceLedgerKey(key)) doomed.push(key);
+    }
+    for (const key of doomed) localStorage.removeItem(key);
+  } catch (error) {
+    logger.warn("expense_storage_save_failed", { errorType: classifyError(error) });
+  }
+  cached = [];
+  hydrated = true;
+  hydratingPromise = null;
+  emit();
+  for (const listener of [...wipeListeners]) listener();
+}
+
+/**
+ * Remember who is signed in. No stamp yet means this install has not recorded
+ * an account — keep the queue and write the id. Wipe only when the id changes.
+ */
+export function noteSignedInUser(userId: string | null): void {
+  if (!userId) return;
+  const previous = localStorage.getItem(LAST_USER_ID_KEY);
+  if (previous === userId) return;
+  if (previous !== null) wipeLocalState();
+  localStorage.setItem(LAST_USER_ID_KEY, userId);
+}
