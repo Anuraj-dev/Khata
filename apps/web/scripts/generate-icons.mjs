@@ -7,7 +7,9 @@
 // each launcher's safe zone (Android adaptive ≈ 66%, PWA maskable ≈ 80%).
 //
 // Requirements: ImageMagick 7 (`magick`) built with librsvg.
-// Run:  node apps/web/scripts/generate-icons.mjs   (from anywhere)
+// Run (from repo root or anywhere):
+//   node apps/web/scripts/generate-icons.mjs          # web + Android
+//   node apps/web/scripts/generate-icons.mjs --web-only
 
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
@@ -18,6 +20,7 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const webRoot = join(here, "..");
 const tmp = mkdtempSync(join(tmpdir(), "khata-icons-"));
+const webOnly = process.argv.includes("--web-only");
 
 // ── Glyph (Noto Sans Bold ₹, U+20B9) ────────────────────────────────────────
 const GLYPH =
@@ -66,21 +69,25 @@ function svg(C, variant, frac) {
 }
 
 function render(variant, frac, size, outPath) {
-  const src = join(tmp, `${variant}-${size}.svg`);
+  const src = join(tmp, `${variant}-${frac}-${size}.svg`);
   writeFileSync(src, svg(512, variant, frac));
   execFileSync("magick", ["-background", "none", "-density", "384", src, "-resize", `${size}x${size}`, outPath]);
   console.log("  ", outPath.replace(webRoot + "/", ""));
 }
 
 const FG_FRAC = 0.36; // adaptive foreground — extra padding for 66% safe zone
-const SQUARE_FRAC = 0.44; // PWA maskable — fits 80% safe zone
+const MASKABLE_FRAC = 0.44; // PWA maskable — fits 80% safe zone
+const ANY_FRAC = 0.72; // fuller "any" icon — fills the canvas outside the maskable pad
 const ROUNDED_FRAC = 0.46;
 
-console.log("Generating Khata icons…");
+console.log(webOnly ? "Generating Khata web icons…" : "Generating Khata icons…");
 
 // ── PWA / web ────────────────────────────────────────────────────────────────
-render("square", SQUARE_FRAC, 192, join(webRoot, "public/icons/icon-192.png"));
-render("square", SQUARE_FRAC, 512, join(webRoot, "public/icons/icon-512.png"));
+const iconsDir = join(webRoot, "public/icons");
+render("square", ANY_FRAC, 192, join(iconsDir, "icon-192.png"));
+render("square", ANY_FRAC, 512, join(iconsDir, "icon-512.png"));
+render("square", MASKABLE_FRAC, 192, join(iconsDir, "icon-192-maskable.png"));
+render("square", MASKABLE_FRAC, 512, join(iconsDir, "icon-512-maskable.png"));
 render("square", ROUNDED_FRAC, 180, join(webRoot, "public/apple-touch-icon.png"));
 
 // favicon.svg — self-contained vector source of truth
@@ -97,17 +104,21 @@ render("rounded", ROUNDED_FRAC, 256, icoBase);
 execFileSync("magick", [icoBase, "-define", "icon:auto-resize=48,32,16", join(webRoot, "public/favicon.ico")]);
 console.log("   public/favicon.ico");
 
-// ── Android (Capacitor) ──────────────────────────────────────────────────────
-const res = join(webRoot, "android/app/src/main/res");
-const launcher = { mdpi: 48, hdpi: 72, xhdpi: 96, xxhdpi: 144, xxxhdpi: 192 };
-const foreground = { mdpi: 108, hdpi: 162, xhdpi: 216, xxhdpi: 324, xxxhdpi: 432 };
+if (!webOnly) {
+  // ── Android (Capacitor) ──────────────────────────────────────────────────────
+  const res = join(webRoot, "android/app/src/main/res");
+  const launcher = { mdpi: 48, hdpi: 72, xhdpi: 96, xxhdpi: 144, xxxhdpi: 192 };
+  const foreground = { mdpi: 108, hdpi: 162, xhdpi: 216, xxhdpi: 324, xxxhdpi: 432 };
 
-for (const [d, px] of Object.entries(launcher)) {
-  render("rounded", ROUNDED_FRAC, px, join(res, `mipmap-${d}/ic_launcher.png`));
-  render("round", ROUNDED_FRAC, px, join(res, `mipmap-${d}/ic_launcher_round.png`));
-}
-for (const [d, px] of Object.entries(foreground)) {
-  render("fg", FG_FRAC, px, join(res, `mipmap-${d}/ic_launcher_foreground.png`));
+  for (const [d, px] of Object.entries(launcher)) {
+    render("rounded", ROUNDED_FRAC, px, join(res, `mipmap-${d}/ic_launcher.png`));
+    render("round", ROUNDED_FRAC, px, join(res, `mipmap-${d}/ic_launcher_round.png`));
+  }
+  for (const [d, px] of Object.entries(foreground)) {
+    render("fg", FG_FRAC, px, join(res, `mipmap-${d}/ic_launcher_foreground.png`));
+  }
+} else {
+  console.log("  (skipped Android — --web-only)");
 }
 
 rmSync(tmp, { recursive: true, force: true });
