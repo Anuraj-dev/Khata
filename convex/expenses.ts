@@ -72,6 +72,18 @@ export const addExpense = mutation({
   handler: async (ctx, args) => {
     const owner = await requireTokenIdentifier(ctx);
     assertValidAmount(args.amount);
+    // Offline retries reuse one clientId. Return an existing row so a lost
+    // response cannot insert another expense. `.first()` — not `.unique()` —
+    // because a server that predates this check may already have stored the
+    // same clientId twice; a retry must still resolve and must not insert a third.
+    const existing = await ctx.db
+      .query("expenses")
+      .withIndex("by_owner_client_id", (q) =>
+        q.eq("ownerTokenIdentifier", owner).eq("clientId", args.clientId)
+      )
+      .first();
+    if (existing) return existing._id;
+
     const now = Date.now();
     const id = await ctx.db.insert("expenses", {
       ...args,

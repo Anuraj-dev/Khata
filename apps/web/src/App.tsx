@@ -47,12 +47,18 @@ const UdhaarScreen = lazy(() =>
 const UdhaarPersonScreen = lazy(() =>
   import("./screens/UdhaarPersonScreen").then((m) => ({ default: m.UdhaarPersonScreen }))
 );
+const SearchScreen = lazy(() =>
+  import("./screens/SearchScreen").then((m) => ({ default: m.SearchScreen }))
+);
 import { captureJoinFromUrl, takePendingJoin } from "./lib/joinLink";
 import {
   applyAddExpenseOptimistic,
   applyDeleteExpenseOptimistic,
 } from "./lib/optimisticExpenses";
+import { authClient } from "./lib/auth-client";
+import { LAST_USER_ID_KEY, noteSignedInUser, sessionUserId } from "./lib/expenseStorage";
 import { useExpenseMutations } from "./hooks/useExpenseMutations";
+import { useOnlineStatus } from "./hooks/useOnlineStatus";
 import { useRetryQueue } from "./hooks/useRetryQueue";
 import { useSmsPoller } from "./hooks/useSmsPoller";
 import { useDeepLinkAuth } from "./hooks/useDeepLinkAuth";
@@ -66,6 +72,7 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
   const location = useLocation();
   const navigate = useNavigate();
   const onExpensesTab = location.pathname === "/";
+  const onSearch = location.pathname === "/search";
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
@@ -109,21 +116,32 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
     }
   }, [addExpenseMutation, deleteExpenseMutation]);
 
-  const { enqueueRetry, retryQueuedMutations } = useRetryQueue({
+  const { isAuthenticated: convexAuthenticated } = useConvexAuth();
+  const online = useOnlineStatus();
+  const session = authClient.useSession();
+  const signedInUserId = sessionUserId(session.data);
+  // Published only after noteSignedInUser. Flush stays closed while this lags the session.
+  const [deviceUserId, setDeviceUserId] = useState<string | null>(() => localStorage.getItem(LAST_USER_ID_KEY));
+
+  const { enqueueRetry } = useRetryQueue({
+    online,
+    authenticated: convexAuthenticated,
+    signedInUserId,
+    deviceUserId,
     runRetryPayload,
-    onRetryComplete: (msg) => showToast({ kind: "info", message: msg }),
+    onRetryComplete: (message) => showToast({ kind: "info", message }),
+    onRetryGiveUp: (message) => showToast({ kind: "error", message }),
   });
+
+  useEffect(() => {
+    if (!convexAuthenticated || !signedInUserId) return;
+    noteSignedInUser(signedInUserId);
+    setDeviceUserId(signedInUserId);
+  }, [convexAuthenticated, signedInUserId]);
 
   const { addExpense } = useExpenseMutations({ showToast, enqueueRetry });
   useSmsPoller();
   usePushNotifications();
-
-  // Flush offline write queue the moment the device comes back online.
-  useEffect(() => {
-    const flush = () => { void retryQueuedMutations(); };
-    window.addEventListener("online", flush);
-    return () => window.removeEventListener("online", flush);
-  }, [retryQueuedMutations]);
 
   // Resume a trip invite that was opened before sign-in (the token was stashed
   // pre-auth so it survives the OAuth round-trip).
@@ -180,9 +198,34 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
           </span>
         </span>
         <button
+          onClick={() => navigate("/search")}
+          aria-label="Search expenses"
+          aria-current={onSearch ? "page" : undefined}
+          className="ml-auto flex h-11 w-11 items-center justify-center transition-colors"
+          style={{
+            color: onSearch ? "var(--color-accent)" : "var(--color-text-secondary)",
+            background: "none",
+            border: "none",
+            borderRadius: "var(--radius-md)",
+            transitionDuration: "var(--dur-fast)",
+            cursor: "pointer",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-text-primary)")}
+          onMouseLeave={(e) =>
+            (e.currentTarget.style.color = onSearch
+              ? "var(--color-accent)"
+              : "var(--color-text-secondary)")
+          }
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M20 20l-3.5-3.5" />
+          </svg>
+        </button>
+        <button
           onClick={() => navigate("/settings")}
           aria-label="Settings"
-          className="ml-auto flex h-11 w-11 -mr-2 items-center justify-center transition-colors"
+          className="flex h-11 w-11 -mr-2 items-center justify-center transition-colors"
           style={{
             color: "var(--color-text-secondary)",
             background: "none",
@@ -246,6 +289,7 @@ function AppShell({ isAuthenticated }: { isAuthenticated: boolean }) {
             <Route path="trips/:tripId" element={<TripDetailScreen />} />
             <Route path="join/:token" element={<JoinTripScreen />} />
             <Route path="insights" element={<InsightsScreen />} />
+            <Route path="search" element={<SearchScreen />} />
             <Route path="settings" element={<SettingsScreen showToast={showToast} />} />
             {/* Unknown path (e.g. a stale PWA shell that predates a route) →
                 home, never a blank screen. */}

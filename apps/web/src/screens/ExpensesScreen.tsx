@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Doc, Id } from "@convex/_generated/dataModel";
 import { suggestByName } from "../../../../convex/contactMatch";
 import { formatRupees, todayIso } from "../lib/dates";
-import { expenseStore, type LocalExpense } from "../lib/expenseStorage";
+import { dedupeByClientId, expenseCreationTime, expenseStore, type LocalExpense } from "../lib/expenseStorage";
 import { useExpenseList } from "../hooks/useExpenseList";
 import { useExpenseQueries } from "../hooks/useExpenseQueries";
 import { shouldShowExpenseSkeleton } from "../lib/expenseGate";
@@ -83,32 +83,10 @@ export function ExpensesScreen({ isAuthenticated, onAddPress, showToast }: Props
     () => localStorage.getItem(BUDGET_PROMPT_DISMISSED_KEY) === "1"
   );
 
-  // This month's spend (debits), used both to suggest a starting budget and to
-  // ground the prompt copy. recentExpenses caps at 100 rows, which is plenty at
-  // the stage where the prompt is still showing.
-  const month = todayIso().slice(0, 7);
-  const spentThisMonth = recentExpenses
-    .filter((e) => e.direction === "debit" && e.date.startsWith(month))
-    .reduce((sum, e) => sum + e.amount, 0);
-
-  // Prompt once the user has seen value: ≥10 expenses or ≥3 distinct active days.
-  const distinctDays = new Set(recentExpenses.map((e) => e.date)).size;
-  const promptEligible =
-    !budget.loading &&
-    budget.status === null &&
-    !promptDismissed &&
-    (recentExpenses.length >= 10 || distinctDays >= 3);
-
-  function dismissPrompt() {
-    localStorage.setItem(BUDGET_PROMPT_DISMISSED_KEY, "1");
-    setPromptDismissed(true);
-  }
-
-  // Reconcile only after the authenticated query resolves. An empty response is
-  // meaningful too: it must clear stale data from a previous account/session.
-  useEffect(() => {
-    if (!isAuthenticated || isRecentLoading) return;
-    const serverExpenses: LocalExpense[] = recentExpenses.map((e: Doc<"expenses">) => ({
+  // Collapse a page that repeats a clientId before any total or paint. A server
+  // that still inserts on retry would otherwise show the spend twice.
+  const serverPage = useMemo(() => {
+    return dedupeByClientId(recentExpenses).map((e: Doc<"expenses">): LocalExpense => ({
       id: e.clientId,
       amount: e.amount,
       note: e.note,
@@ -121,11 +99,38 @@ export function ExpensesScreen({ isAuthenticated, onAddPress, showToast }: Props
       contactId: e.contactId,
       udhaarPerson: e.udhaarPerson,
       date: e.date,
-      createdAt: e._creationTime,
+      createdAt: expenseCreationTime(e),
       syncedId: e._id,
     }));
-    expenseStore._syncFromServer(serverExpenses);
-  }, [isAuthenticated, isRecentLoading, recentExpenses]);
+  }, [recentExpenses]);
+
+  // This month's spend (debits), used both to suggest a starting budget and to
+  // ground the prompt copy. The history page caps the rows, which is plenty at
+  // the stage where the prompt is still showing.
+  const month = todayIso().slice(0, 7);
+  const spentThisMonth = serverPage
+    .filter((e) => e.direction === "debit" && e.date.startsWith(month))
+    .reduce((sum, e) => sum + e.amount, 0);
+
+  // Prompt once the user has seen value: ≥10 expenses or ≥3 distinct active days.
+  const distinctDays = new Set(serverPage.map((e) => e.date)).size;
+  const promptEligible =
+    !budget.loading &&
+    budget.status === null &&
+    !promptDismissed &&
+    (serverPage.length >= 10 || distinctDays >= 3);
+
+  function dismissPrompt() {
+    localStorage.setItem(BUDGET_PROMPT_DISMISSED_KEY, "1");
+    setPromptDismissed(true);
+  }
+
+  // Reconcile only after the authenticated query resolves. An empty response is
+  // meaningful too: it must clear stale rows from a previous account.
+  useEffect(() => {
+    if (!isAuthenticated || isRecentLoading) return;
+    expenseStore._syncFromServer(serverPage);
+  }, [isAuthenticated, isRecentLoading, serverPage]);
 
   // Net for the day: what's left after spend vs received. Positive = up, negative = down.
   const todayNet = todayCredit - todayDebit;
