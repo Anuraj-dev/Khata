@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.14.0](https://github.com/Anuraj-dev/Khata/compare/v0.13.5...v0.14.0) (2026-09-30)
+
+
+### Features
+
+* **insights:** add a 12-month view with per-category month-over-month change ([f448a6b](https://github.com/Anuraj-dev/Khata/commit/f448a6ba357faac16ac4847bfb3a8f25a869e7c5))
+* **search:** add expense search with filters and CSV export ([beba76b](https://github.com/Anuraj-dev/Khata/commit/beba76b0edc246448127302a5bc8aed2a06b001d))
+* **web:** redesign landing page with spotlight hero and shimmer cards ([7acf297](https://github.com/Anuraj-dev/Khata/commit/7acf2972a1ff50c38d3f011343454c4da7768cb2))
+* **web:** redesign landing page with spotlight hero and shimmer cards ([d718bdf](https://github.com/Anuraj-dev/Khata/commit/d718bdf357af57ee0eea6914e0eeeac45f2a3834))
+* **web:** self-host Geist fonts and ship maskable PWA icons ([bf296bd](https://github.com/Anuraj-dev/Khata/commit/bf296bd0bb2d4550565d704ad3cc7cf1c2e2ec2a))
+
+
+### Bug Fixes
+
+* **expenses:** make offline adds idempotent and scope retries to the signed-in user ([47af226](https://github.com/Anuraj-dev/Khata/commit/47af226976fe624dac68704157d05fe59d07598e))
+
 ## [0.13.5](https://github.com/Anuraj-dev/Khata/compare/v0.13.4...v0.13.5) (2026-06-18)
 
 
