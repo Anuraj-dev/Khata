@@ -150,7 +150,7 @@ function extractAmount(text: string): number | null {
   const before = AMOUNT_BEFORE_VERB_RE.exec(text);
   const spent = AMOUNT_SPENT_FOR_RE.exec(text);
   const crdr = AMOUNT_UPI_CRDR_RE.exec(text);
-  const candidates = [after, before, spent, crdr].filter((m): m is RegExpMatchArray => m !== null);
+  const candidates = [after, before, spent, crdr].flatMap((m) => (m ? [m] : []));
   // A currency mark next to the verb beats a bare number ("debited by 2 faasos").
   const withCurrency = candidates.filter((m) => /rs\.?|inr|₹/i.test(m[0]));
   const chosen = withCurrency[0] ?? candidates[0];
