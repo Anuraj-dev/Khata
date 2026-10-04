@@ -206,6 +206,46 @@ describe("addExpense clientId idempotency", () => {
 });
 
 describe("SMS ingest device auth", () => {
+  it("does not rebind an existing device secret to a different signed-in user", async () => {
+    const t = convexTest(schema, modules);
+    const secret = "device-secret-alice";
+    await t.withIdentity(ALICE).mutation(api.smsIngest.registerDevice, {
+      deviceSecret: secret,
+      platform: "android",
+    });
+
+    await expect(
+      t.withIdentity(BOB).mutation(api.smsIngest.registerDevice, {
+        deviceSecret: secret,
+        platform: "ios",
+      })
+    ).rejects.toThrow(/already registered/i);
+
+    const row = await t.run(async (ctx) =>
+      ctx.db.query("smsDevices").withIndex("by_secret", (q) => q.eq("deviceSecret", secret)).unique()
+    );
+    expect(row?.ownerTokenIdentifier).toBe(ALICE.tokenIdentifier);
+    expect(row?.platform).toBe("android");
+  });
+
+  it("lets the owner refresh the same device secret", async () => {
+    const t = convexTest(schema, modules);
+    const secret = "device-secret-refresh";
+    await t.withIdentity(ALICE).mutation(api.smsIngest.registerDevice, {
+      deviceSecret: secret,
+      platform: "android",
+    });
+    await t.withIdentity(ALICE).mutation(api.smsIngest.registerDevice, {
+      deviceSecret: secret,
+      platform: "android-14",
+    });
+    const rows = await t.run(async (ctx) => ctx.db.query("smsDevices").collect());
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.ownerTokenIdentifier).toBe(ALICE.tokenIdentifier);
+    expect(rows[0]?.platform).toBe("android-14");
+    expect(rows[0]?.deviceSecret).toBe(secret);
+  });
+
   it("rejects an unknown device secret", async () => {
     const t = convexTest(schema, modules);
     const result = await t.mutation(internal.smsIngest.ingestFromDevice, {

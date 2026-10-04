@@ -15,7 +15,8 @@ export const listPending = query({
         q.eq("ownerTokenIdentifier", owner).eq("status", "pending")
       )
       .order("desc")
-      .collect();
+      // A review inbox, not a ledger. Cap so a stuck device cannot return thousands.
+      .take(200);
   },
 });
 
@@ -159,12 +160,13 @@ export const purgeOldRejected = internalMutation({
   args: {},
   handler: async (ctx) => {
     const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    // Index range, and a batch cap. The hourly cron comes back for the rest.
     const old = await ctx.db
       .query("smsReviewQueue")
-      .filter((q) =>
-        q.and(q.eq(q.field("status"), "rejected"), q.lt(q.field("createdAt"), cutoff))
+      .withIndex("by_status_created", (q) =>
+        q.eq("status", "rejected").lt("createdAt", cutoff)
       )
-      .collect();
+      .take(400);
     for (const item of old) await ctx.db.delete(item._id);
     return old.length;
   },

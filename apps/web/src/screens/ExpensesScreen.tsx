@@ -61,12 +61,20 @@ export function ExpensesScreen({ isAuthenticated, onAddPress, showToast }: Props
   // A one-tap suggestion for an untagged SMS expense whose parsed name fuzzily
   // matches a contact. Exact matches are already auto-linked server-side, so
   // anything still untagged here is a fuzzy hint worth offering.
-  function suggestionFor(e: LocalExpense): string | null {
-    if (e.udhaarPerson || !e.party || !e.syncedId || !contacts?.length) return null;
-    const m = suggestByName(e.party, contacts);
-    if (!m) return null;
-    return contacts.find((c) => c.contactId === m.contactId)?.name ?? null;
-  }
+  const suggestions = useMemo(() => {
+    const map = new Map<string, string>();
+    if (!contacts?.length) return map;
+    for (const section of sections) {
+      for (const e of section.data) {
+        if (e.udhaarPerson || !e.party || !e.syncedId) continue;
+        const m = suggestByName(e.party, contacts);
+        if (!m) continue;
+        const name = contacts.find((c) => c.contactId === m.contactId)?.name;
+        if (name) map.set(e.id, name);
+      }
+    }
+    return map;
+  }, [sections, contacts]);
 
   async function acceptSuggestion(e: LocalExpense, name: string) {
     if (!e.syncedId) return;
@@ -335,7 +343,7 @@ export function ExpensesScreen({ isAuthenticated, onAddPress, showToast }: Props
                 showNet={section.label !== "Today"}
               />
               {section.data.map((expense) => {
-                const suggestion = suggestionFor(expense);
+                const suggestion = suggestions.get(expense.id);
                 return (
                   <div key={expense.id}>
                     <ExpenseCard

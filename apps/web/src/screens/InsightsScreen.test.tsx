@@ -10,20 +10,6 @@ import { InsightsScreen } from "./InsightsScreen";
 import { resetConvexMock, setAuth, setQuery } from "../test/convexMock";
 import { toIsoDate } from "../lib/dates";
 
-function debit(over: { date: string; amount: number; category: string; id: string; clientId?: string }) {
-  return {
-    _id: over.id,
-    clientId: over.clientId,
-    date: over.date,
-    amount: over.amount,
-    category: over.category,
-    direction: "debit" as const,
-    source: "manual" as const,
-    note: over.category,
-    party: "",
-  };
-}
-
 describe("InsightsScreen", () => {
   const onLineDescriptor = Object.getOwnPropertyDescriptor(Navigator.prototype, "onLine")
     ?? Object.getOwnPropertyDescriptor(navigator, "onLine");
@@ -76,13 +62,20 @@ describe("InsightsScreen", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Loading…");
   });
 
-  it("does not double-count a clientId the server stored twice", () => {
+  it("renders the month total from the summary, not a second copy of the rows", () => {
     const now = new Date();
-    const current = toIsoDate(new Date(now.getFullYear(), now.getMonth(), 5));
+    const key = toIsoDate(new Date(now.getFullYear(), now.getMonth(), 5)).slice(0, 7);
     setAuth({ isAuthenticated: true, isLoading: false });
-    setQuery(api.expenses.listRange, [
-      debit({ id: "e1", clientId: "dup", date: current, amount: 12300, category: "food" }),
-      debit({ id: "e2", clientId: "dup", date: current, amount: 12300, category: "food" }),
+    setQuery(api.expenses.insightsSummary, [
+      {
+        key,
+        debit: 12300,
+        credit: 0,
+        sms: 0,
+        manual: 12300,
+        categories: [{ category: "food", amount: 12300 }],
+        merchants: [],
+      },
     ]);
     setQuery(api.categories.listCategories, []);
 
@@ -104,9 +97,25 @@ describe("InsightsScreen", () => {
     const current = toIsoDate(new Date(now.getFullYear(), now.getMonth(), 5));
     const previous = toIsoDate(new Date(now.getFullYear(), now.getMonth() - 1, 10));
     setAuth({ isAuthenticated: true, isLoading: false });
-    setQuery(api.expenses.listRange, [
-      debit({ id: "e1", date: previous, amount: 10000, category: "food" }),
-      debit({ id: "e2", date: current, amount: 20000, category: "food" }),
+    setQuery(api.expenses.insightsSummary, [
+      {
+        key: previous.slice(0, 7),
+        debit: 10000,
+        credit: 0,
+        sms: 0,
+        manual: 10000,
+        categories: [{ category: "food", amount: 10000 }],
+        merchants: [],
+      },
+      {
+        key: current.slice(0, 7),
+        debit: 20000,
+        credit: 0,
+        sms: 5000,
+        manual: 15000,
+        categories: [{ category: "food", amount: 20000 }],
+        merchants: [],
+      },
     ]);
     setQuery(api.categories.listCategories, []);
 
@@ -119,5 +128,25 @@ describe("InsightsScreen", () => {
       })
     ).toBeInTheDocument();
     expect(screen.getByText("+100%")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "SMS vs typed" })).toBeInTheDocument();
+    expect(screen.queryByText("Cash vs UPI")).not.toBeInTheDocument();
+    const monthLabel = new Date(now.getFullYear(), now.getMonth(), 1).toLocaleString("en-IN", {
+      month: "long",
+      year: "numeric",
+    });
+    expect(screen.getByRole("button", { name: `${monthLabel}, ₹200` })).toBeInTheDocument();
+    expect(
+      screen.getByRole("group", { name: /spend over the last 12 months/i }).getAttribute("preserveAspectRatio"),
+    ).toBe("xMidYMid meet");
+  });
+
+  it("says there is no spending, in the same tone as an empty month", () => {
+    setAuth({ isAuthenticated: true, isLoading: false });
+    setQuery(api.expenses.insightsSummary, []);
+    setQuery(api.categories.listCategories, []);
+    render(<InsightsScreen />);
+    expect(screen.getByText("No spending this month.")).toBeInTheDocument();
+    expect(screen.getByText("No spending in the last 12 months.")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "SMS vs typed" })).not.toBeInTheDocument();
   });
 });

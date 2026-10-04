@@ -41,6 +41,8 @@ export default defineSchema({
   })
     .index("by_owner", ["ownerTokenIdentifier"])
     .index("by_owner_date", ["ownerTokenIdentifier", "date"])
+    .index("by_owner_direction_date", ["ownerTokenIdentifier", "direction", "date"])
+    .index("by_owner_source_date", ["ownerTokenIdentifier", "source", "date"])
     .index("by_owner_client_id", ["ownerTokenIdentifier", "clientId"])
     .index("by_owner_udhaar", ["ownerTokenIdentifier", "udhaarPerson"])
     .index("by_owner_contact", ["ownerTokenIdentifier", "contactId"]),
@@ -242,5 +244,7 @@ export default defineSchema({
     reviewedAt: v.optional(v.number()),
   })
     .index("by_owner", ["ownerTokenIdentifier"])
-    .index("by_owner_status", ["ownerTokenIdentifier", "status"]),
+    .index("by_owner_status", ["ownerTokenIdentifier", "status"])
+    // Hourly purge of rejected rows. Status-first so it does not scan pending/approved.
+    .index("by_status_created", ["status", "createdAt"]),
 });

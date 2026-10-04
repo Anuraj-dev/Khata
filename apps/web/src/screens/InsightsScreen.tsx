@@ -1,18 +1,19 @@
 import { useMemo, useState } from "react";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
-import type { Doc } from "@convex/_generated/dataModel";
 import { formatRupees } from "../lib/dates";
 import {
   INSIGHTS_MONTHS,
   categorySpendDeltas,
   insightsRange,
   lastTwelveMonthKeys,
-  type CategorySpendDelta,
+  type SpendRow,
 } from "../lib/insightsMath";
+import { monthIsoRange } from "../lib/expenseReport";
 import { useCategories } from "../hooks/useCategories";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { dedupeByClientId } from "../lib/expenseStorage";
+import { merchantIdentity, type InsightMerchant } from "../../../../convex/insightBuckets";
 import { ChevronLeft, ChevronRight } from "../components/icons";
 import { Sheet } from "../components/Sheet";
 
@@ -38,7 +39,17 @@ function deltaSpoken(deltaPct: number | null): string {
     : `down ${-deltaPct} percent from last month`;
 }
 
-type Drill = { title: string; items: Doc<"expenses">[] } | null;
+type Drill =
+  | { kind: "category"; category: string; title: string }
+  | { kind: "merchant"; identity: string; title: string }
+  | null;
+
+function merchantLabel(
+  merchant: InsightMerchant,
+  resolve: (id: string) => { label: string },
+): string {
+  return merchant.party || merchant.note || resolve(merchant.category).label;
+}
 
 export function InsightsScreen() {
   // Freeze "today" for the life of this mount so the 12-month window, current-month
@@ -52,67 +63,79 @@ export function InsightsScreen() {
 
   const monthKeys = useMemo(() => lastTwelveMonthKeys(today), [today]);
   const { start: windowStart, end: windowEnd } = useMemo(() => insightsRange(today), [today]);
-  const expenses = useQuery(
-    api.expenses.listRange,
+  // Totals only. Line items for a tapped category come from listRange, one month.
+  const summary = useQuery(
+    api.expenses.insightsSummary,
     isAuthenticated ? { start: windowStart, end: windowEnd } : "skip"
   );
 
-  // Same clientId collapse as Home, so a retried insert cannot inflate the year.
-  const ledger = useMemo(
-    () => (expenses === undefined ? undefined : dedupeByClientId(expenses)),
-    [expenses],
-  );
-
   const buckets = useMemo(() => {
-    const list = monthKeys.map((key) => {
+    const byKey = new Map((summary ?? []).map((m) => [m.key, m]));
+    return monthKeys.map((key) => {
       const [year, month] = key.split("-").map(Number);
-      return { key, year, month0: month - 1, debit: 0, credit: 0 };
+      const row = byKey.get(key);
+      return {
+        key,
+        year,
+        month0: month - 1,
+        debit: row?.debit ?? 0,
+        credit: row?.credit ?? 0,
+        sms: row?.sms ?? 0,
+        manual: row?.manual ?? 0,
+        categories: row?.categories ?? [],
+        merchants: row?.merchants ?? [],
+      };
     });
-    const byKey = new Map(list.map((b) => [b.key, b]));
-    for (const e of ledger ?? ([] as Doc<"expenses">[])) {
-      const b = byKey.get(e.date.slice(0, 7));
-      if (!b) continue;
-      if (e.direction === "debit") b.debit += e.amount;
-      else b.credit += e.amount;
-    }
-    return list;
-  }, [ledger, monthKeys]);
+  }, [summary, monthKeys]);
 
   const selectedIndex = buckets.length - 1 + offset;
   const selected = buckets[selectedIndex];
   const isCurrentMonth = offset === 0;
 
-  // One pass over the selected month's rows: merchants + cash-vs-UPI. Category
-  // sums (with vs-last-month delta) come from categorySpendDeltas over the window.
-  const month = useMemo(() => {
-    const rows = (ledger ?? ([] as Doc<"expenses">[])).filter(
-      (e) => selected && e.date.slice(0, 7) === selected.key
-    );
-    const merchantSums = new Map<string, number>();
-    let cash = 0;
-    let upi = 0;
-    for (const e of rows) {
-      if (e.direction !== "debit") continue;
-      const key = e.party || e.note || resolve(e.category).label;
-      merchantSums.set(key, (merchantSums.get(key) ?? 0) + e.amount);
-      if (e.source === "sms") upi += e.amount;
-      else cash += e.amount;
+  const drillRange = drill && selected ? monthIsoRange(selected.key) : null;
+  const drillLoaded = useQuery(
+    api.expenses.listRange,
+    isAuthenticated && drillRange ? drillRange : "skip",
+  );
+
+  // Must stay above the loading return. A hook after that return runs only once
+  // summary arrives, and React throws "Rendered more hooks than during the previous render."
+  const drillItems = useMemo(() => {
+    if (!drill) return [];
+    return dedupeByClientId(drillLoaded ?? []).filter((e) => {
+      if (e.direction !== "debit") return false;
+      if (drill.kind === "category") return e.category === drill.category;
+      return merchantIdentity(e.party, e.note, e.category) === drill.identity;
+    });
+  }, [drill, drillLoaded]);
+
+  const spendRows = useMemo(() => {
+    const rows: SpendRow[] = [];
+    for (const bucket of buckets) {
+      for (const category of bucket.categories) {
+        rows.push({
+          date: `${bucket.key}-01`,
+          category: category.category,
+          amount: category.amount,
+          direction: "debit",
+        });
+      }
     }
+    return rows;
+  }, [buckets]);
+
+  const month = useMemo(() => {
     const prevKey = selectedIndex > 0 ? buckets[selectedIndex - 1].key : null;
-    const categories: CategorySpendDelta[] = selected
-      ? categorySpendDeltas(ledger ?? [], selected.key, prevKey)
-      : [];
     return {
-      rows,
-      categories,
-      merchants: [...merchantSums.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6),
-      cash,
-      upi,
+      categories: selected ? categorySpendDeltas(spendRows, selected.key, prevKey) : [],
+      merchants: selected?.merchants ?? [],
+      sms: selected?.sms ?? 0,
+      manual: selected?.manual ?? 0,
     };
-  }, [ledger, selected, selectedIndex, buckets, resolve]);
+  }, [spendRows, selected, selectedIndex, buckets]);
 
   const offline = !online;
-  if (expenses === undefined) {
+  if (summary === undefined) {
     // Skipped query (signed out) or an offline shell must not look like a load.
     // Spinner only while auth is resolving online, or an authenticated fetch is in flight.
     const waitingOnAuth = authLoading && !offline && !isAuthenticated;
@@ -147,17 +170,13 @@ export function InsightsScreen() {
 
   // Tap a category/merchant → that month's matching transactions.
   function openCategory(cat: string) {
-    setDrill({
-      title: resolve(cat).label,
-      items: month.rows.filter((e) => e.direction === "debit" && e.category === cat),
-    });
+    setDrill({ kind: "category", category: cat, title: resolve(cat).label });
   }
-  function openMerchant(key: string) {
+  function openMerchant(merchant: InsightMerchant) {
     setDrill({
-      title: key,
-      items: month.rows.filter(
-        (e) => e.direction === "debit" && (e.party || e.note || resolve(e.category).label) === key
-      ),
+      kind: "merchant",
+      identity: merchant.identity,
+      title: merchantLabel(merchant, resolve),
     });
   }
 
@@ -216,19 +235,25 @@ export function InsightsScreen() {
         </p>
       )}
 
-      {/* Cash vs UPI split */}
-      {(month.cash > 0 || month.upi > 0) && (
+      {/* How the row got here: SMS auto-log vs typed. Not a payment rail. */}
+      {(month.sms > 0 || month.manual > 0) && (
         <div className="px-4 mt-6">
           <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: "var(--color-text-muted)" }}>
-            Cash vs UPI
+            SMS vs typed
           </h3>
           <div className="flex h-2.5 w-full overflow-hidden rounded-full" style={{ background: "var(--color-surface-elevated)" }}>
-            <div style={{ width: `${(month.upi / (month.cash + month.upi)) * 100}%`, background: "var(--color-accent)" }} />
-            <div style={{ width: `${(month.cash / (month.cash + month.upi)) * 100}%`, background: "var(--color-credit)" }} />
+            <div style={{ width: `${(month.sms / (month.sms + month.manual)) * 100}%`, background: "var(--color-accent)" }} />
+            <div style={{ width: `${(month.manual / (month.sms + month.manual)) * 100}%`, background: "var(--color-credit)" }} />
           </div>
           <div className="mt-1.5 flex justify-between text-xs" style={{ color: "var(--color-text-secondary)" }}>
-            <span>● UPI {formatRupees(month.upi)}</span>
-            <span>Cash {formatRupees(month.cash)} ●</span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--color-accent)" }} aria-hidden />
+              SMS {formatRupees(month.sms)}
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              Typed {formatRupees(month.manual)}
+              <span className="h-2.5 w-2.5 rounded-full" style={{ background: "var(--color-credit)" }} aria-hidden />
+            </span>
           </div>
         </div>
       )}
@@ -290,18 +315,18 @@ export function InsightsScreen() {
             Top merchants
           </h3>
           <div className="flex flex-col">
-            {month.merchants.map(([key, amount]) => (
+            {month.merchants.map((merchant) => (
               <button
-                key={key}
-                onClick={() => openMerchant(key)}
+                key={merchant.identity}
+                onClick={() => openMerchant(merchant)}
                 className="flex items-center justify-between gap-3 py-2.5 text-left"
                 style={{ background: "none", border: "none", borderBottom: "1px solid var(--color-border-subtle)", cursor: "pointer" }}
               >
                 <span className="text-sm truncate" style={{ color: "var(--color-text-secondary)" }}>
-                  {key}
+                  {merchantLabel(merchant, resolve)}
                 </span>
                 <span className="text-sm tabular-nums shrink-0" style={{ color: "var(--color-text-primary)", fontFamily: "var(--font-mono)" }}>
-                  {formatRupees(amount)}
+                  {formatRupees(merchant.amount)}
                 </span>
               </button>
             ))}
@@ -314,19 +339,29 @@ export function InsightsScreen() {
         <h3 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: "var(--color-text-muted)" }}>
           Last {INSIGHTS_MONTHS} months
         </h3>
-        <TrendLine buckets={buckets} maxTrend={maxTrend} selectedIndex={selectedIndex} onSelect={(i) => setOffset(i - (buckets.length - 1))} />
+        {buckets.every((b) => b.debit === 0) ? (
+          <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+            No spending in the last {INSIGHTS_MONTHS} months.
+          </p>
+        ) : (
+          <TrendLine buckets={buckets} maxTrend={maxTrend} selectedIndex={selectedIndex} onSelect={(i) => setOffset(i - (buckets.length - 1))} />
+        )}
       </div>
 
       {/* Drill-down */}
       <Sheet open={drill !== null} onClose={() => setDrill(null)} title={drill?.title ?? ""}>
         {drill && (
           <div className="flex flex-col max-h-[60vh] overflow-y-auto">
-            {drill.items.length === 0 ? (
+            {drillLoaded === undefined ? (
+              <p className="px-4 py-3 text-sm" style={{ color: "var(--color-text-muted)" }}>
+                Loading…
+              </p>
+            ) : drillItems.length === 0 ? (
               <p className="px-4 py-3 text-sm" style={{ color: "var(--color-text-muted)" }}>
                 No transactions.
               </p>
             ) : (
-              drill.items.map((e) => (
+              drillItems.map((e) => (
                 <div
                   key={e._id}
                   className="flex items-center justify-between gap-3 px-4 py-2.5"
@@ -485,63 +520,113 @@ function TrendLine({
   selectedIndex: number;
   onSelect: (i: number) => void;
 }) {
+  // Fixed viewBox, uniform meet. Month labels live in the same coordinate
+  // space as the points, so they stay under the dots when the width changes.
   const W = 320;
-  const H = 96;
-  const pad = 10;
+  const padX = 16;
+  const padTop = 28;
+  const plotH = 72;
+  const labelBand = 22;
+  const H = padTop + plotH + labelBand;
+  const plotBottom = padTop + plotH;
   const n = buckets.length;
-  const x = (i: number) => (n <= 1 ? W / 2 : pad + (i * (W - 2 * pad)) / (n - 1));
-  const y = (v: number) => H - pad - (v / maxTrend) * (H - 2 * pad);
+  const x = (i: number) => (n <= 1 ? W / 2 : padX + (i * (W - 2 * padX)) / (n - 1));
+  const y = (v: number) => plotBottom - (maxTrend <= 0 ? 0 : (v / maxTrend) * plotH);
+  const slot = n <= 1 ? W : (W - 2 * padX) / Math.max(n - 1, 1);
   const line = buckets.map((b, i) => `${x(i)},${y(b.debit)}`).join(" ");
+  const selected = buckets[selectedIndex];
+  const amountAnchor = selectedIndex <= 0 ? "start" : selectedIndex >= n - 1 ? "end" : "middle";
 
   return (
-    <div>
-      <svg
-        width="100%"
-        viewBox={`0 0 ${W} ${H}`}
-        preserveAspectRatio="none"
-        style={{ display: "block" }}
-        role="img"
-        aria-label={`Spend over the last ${n} months`}
-      >
-        <polyline points={line} fill="none" stroke="var(--color-accent)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-        {buckets.map((b, i) => (
-          <circle
+    <svg
+      width="100%"
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="xMidYMid meet"
+      style={{ display: "block", width: "100%", height: "auto" }}
+      role="group"
+      aria-label={
+        selected
+          ? `Spend over the last ${n} months. ${monthName(selected.year, selected.month0)} ${formatRupees(selected.debit)}`
+          : `Spend over the last ${n} months`
+      }
+    >
+      <line
+        x1={padX}
+        x2={W - padX}
+        y1={plotBottom}
+        y2={plotBottom}
+        stroke="var(--color-border-subtle)"
+        strokeWidth={1}
+        pointerEvents="none"
+      />
+      <polyline
+        points={line}
+        fill="none"
+        stroke="var(--color-accent)"
+        strokeWidth={2}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        pointerEvents="none"
+      />
+      {selected && (
+        <text
+          x={x(selectedIndex)}
+          y={16}
+          textAnchor={amountAnchor}
+          fill="var(--color-text-primary)"
+          fontSize={11}
+          fontFamily="var(--font-mono)"
+          pointerEvents="none"
+        >
+          {formatRupees(selected.debit)}
+        </text>
+      )}
+      {buckets.map((b, i) => {
+        const short = new Date(b.year, b.month0, 1).toLocaleString("en-IN", { month: "short" });
+        const selectedPoint = i === selectedIndex;
+        const left = Math.max(0, x(i) - slot / 2);
+        const width = Math.min(W - left, slot);
+        return (
+          <g
             key={b.key}
-            cx={x(i)}
-            cy={y(b.debit)}
-            r={i === selectedIndex ? 4.5 : 3}
-            fill={i === selectedIndex ? "var(--color-accent)" : "var(--color-surface)"}
-            stroke="var(--color-accent)"
-            strokeWidth={1.5}
+            role="button"
+            tabIndex={0}
+            aria-label={`${monthName(b.year, b.month0)}, ${formatRupees(b.debit)}`}
+            aria-current={selectedPoint ? "true" : undefined}
             onClick={() => onSelect(i)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onSelect(i);
+              }
+            }}
             style={{ cursor: "pointer" }}
-          />
-        ))}
-      </svg>
-      <div className="flex justify-between mt-1">
-        {buckets.map((b, i) => {
-          const short = new Date(b.year, b.month0, 1).toLocaleString("en-IN", { month: "short" });
-          const showLabel = i === selectedIndex || i === 0 || i === n - 1 || i % 2 === 0;
-          return (
-            <button
-              key={b.key}
-              onClick={() => onSelect(i)}
-              className="flex-1 min-w-0 py-2 text-[10px] leading-none"
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                color: i === selectedIndex ? "var(--color-accent)" : "var(--color-text-muted)",
-                fontWeight: i === selectedIndex ? 600 : 400,
-              }}
-              aria-label={monthName(b.year, b.month0)}
-              aria-current={i === selectedIndex ? "true" : undefined}
+          >
+            <rect x={left} y={0} width={width} height={H} fill="transparent" />
+            <circle
+              cx={x(i)}
+              cy={y(b.debit)}
+              r={selectedPoint ? 4.5 : 3.5}
+              fill={selectedPoint ? "var(--color-accent)" : "var(--color-surface)"}
+              stroke="var(--color-accent)"
+              strokeWidth={1.5}
+              pointerEvents="none"
+            />
+            <text
+              x={x(i)}
+              y={H - 6}
+              textAnchor="middle"
+              fill={selectedPoint ? "var(--color-accent)" : "var(--color-text-muted)"}
+              fontSize={10}
+              fontWeight={selectedPoint ? 600 : 400}
+              fontFamily="var(--font-mono)"
+              pointerEvents="none"
             >
-              {showLabel ? short : ""}
-            </button>
-          );
-        })}
-      </div>
-    </div>
+              {short}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
   );
 }

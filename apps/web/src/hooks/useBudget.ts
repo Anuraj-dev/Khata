@@ -13,7 +13,10 @@ export type BudgetStatus = {
 
 // Server-computed budget status (null = no budget set). The client's local date
 // is passed in so the daily-plan math matches the user's calendar, not UTC.
-export function useBudget(isAuthenticated: boolean) {
+export function useBudget(
+  isAuthenticated: boolean,
+  options?: { includeCategories?: boolean },
+) {
   const status = useQuery(
     api.budget.getStatus,
     isAuthenticated ? { today: todayIso() } : "skip"
@@ -21,9 +24,11 @@ export function useBudget(isAuthenticated: boolean) {
   const setBudget = useMutation(api.budget.setBudget);
   const clearBudget = useMutation(api.budget.clearBudget);
 
+  // The home screen only needs the monthly plan. Category caps re-read the
+  // whole month, so that query stays on the Settings section that renders them.
   const categoryBudgets = useQuery(
     api.budget.listCategoryBudgets,
-    isAuthenticated ? { today: todayIso() } : "skip"
+    isAuthenticated && options?.includeCategories ? { today: todayIso() } : "skip"
   );
   const setCategoryBudget = useMutation(api.budget.setCategoryBudget);
   const clearCategoryBudget = useMutation(api.budget.clearCategoryBudget);

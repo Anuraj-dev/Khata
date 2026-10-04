@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { expenseStore, type LocalExpense } from "../lib/expenseStorage";
 import { todayIso, addDays, toIsoDate } from "../lib/dates";
 
@@ -56,7 +56,7 @@ export function useExpenseList() {
     expenseStore.isHydrated,
   );
 
-  const sections = groupByDate(expenses);
+  const sections = useMemo(() => groupByDate(expenses), [expenses]);
   const todaySection = sections.find((s) => s.label === "Today");
 
   return {

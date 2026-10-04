@@ -50,8 +50,8 @@ export const detect = query({
     const owner = await requireTokenIdentifier(ctx);
     const rows = await ctx.db
       .query("expenses")
-      .withIndex("by_owner_date", (q) =>
-        q.eq("ownerTokenIdentifier", owner).gte("date", isoDaysAgo(125))
+      .withIndex("by_owner_direction_date", (q) =>
+        q.eq("ownerTokenIdentifier", owner).eq("direction", "debit").gte("date", isoDaysAgo(125))
       )
       .collect();
     const existing = await ctx.db
@@ -162,13 +162,16 @@ async function upcomingForOwner(ctx: QueryCtx, owner: string, today: string) {
   const month = today.slice(0, 7);
   const monthDebits = await ctx.db
     .query("expenses")
-    .withIndex("by_owner_date", (q) =>
-      q.eq("ownerTokenIdentifier", owner).gte("date", `${month}-01`).lte("date", `${month}-31`)
+    .withIndex("by_owner_direction_date", (q) =>
+      q
+        .eq("ownerTokenIdentifier", owner)
+        .eq("direction", "debit")
+        .gte("date", `${month}-01`)
+        .lte("date", `${month}-31`)
     )
     .collect();
   const seenKeys = new Set<string>();
   for (const e of monthDebits) {
-    if (e.direction !== "debit") continue;
     const k = keyFor(e);
     if (k) seenKeys.add(k);
   }

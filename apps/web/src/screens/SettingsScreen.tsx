@@ -237,7 +237,9 @@ function BudgetSection({ showToast }: Props) {
 }
 
 function CategoryCapsSection({ showToast }: Props) {
-  const { categoryBudgets, setCategoryBudget, clearCategoryBudget } = useBudget(true);
+  const { categoryBudgets, setCategoryBudget, clearCategoryBudget } = useBudget(true, {
+    includeCategories: true,
+  });
   const { categories, resolve } = useCategories();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [preset, setPreset] = useState<{ category: string; amount: number } | null>(null);

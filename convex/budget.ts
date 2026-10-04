@@ -160,15 +160,19 @@ export const listCategoryBudgets = query({
       .collect();
     if (rows.length === 0) return [];
     const month = today.slice(0, 7);
-    const monthExpenses = await ctx.db
+    const monthDebits = await ctx.db
       .query("expenses")
-      .withIndex("by_owner_date", (q) =>
-        q.eq("ownerTokenIdentifier", owner).gte("date", `${month}-01`).lte("date", `${month}-31`)
+      .withIndex("by_owner_direction_date", (q) =>
+        q
+          .eq("ownerTokenIdentifier", owner)
+          .eq("direction", "debit")
+          .gte("date", `${month}-01`)
+          .lte("date", `${month}-31`)
       )
       .collect();
     const spent = new Map<string, number>();
-    for (const e of monthExpenses) {
-      if (e.direction === "debit") spent.set(e.category, (spent.get(e.category) ?? 0) + e.amount);
+    for (const e of monthDebits) {
+      spent.set(e.category, (spent.get(e.category) ?? 0) + e.amount);
     }
     return rows.map((r) => ({
       category: r.category,

@@ -14,8 +14,9 @@ function toIstIsoDate(ms: number): string {
 
 // Called by the app (native, authenticated) to bind this device's opaque secret
 // to the signed-in user. The background SMS receiver later posts that secret to
-// the HTTP ingest endpoint, which resolves it back to this owner. Upsert by
-// secret so re-registering the same device just refreshes the mapping.
+// the HTTP ingest endpoint, which resolves it back to this owner. Re-registering
+// the same secret refreshes platform only when this user already owns the row.
+// A different signed-in user cannot take the binding.
 export const registerDevice = mutation({
   args: { deviceSecret: v.string(), platform: v.string() },
   handler: async (ctx, { deviceSecret, platform }) => {
@@ -26,7 +27,12 @@ export const registerDevice = mutation({
       .unique();
     const now = Date.now();
     if (existing) {
-      await ctx.db.patch(existing._id, { ownerTokenIdentifier: owner, platform, updatedAt: now });
+      // Found by this secret. Update only when the secret still matches and the
+      // caller already owns the row. Never rewrite ownerTokenIdentifier.
+      if (existing.deviceSecret !== deviceSecret || existing.ownerTokenIdentifier !== owner) {
+        throw new Error("Device already registered");
+      }
+      await ctx.db.patch(existing._id, { platform, updatedAt: now });
       return existing._id;
     }
     return ctx.db.insert("smsDevices", {
@@ -95,7 +101,7 @@ export const ingestFromDevice = internalMutation({
         .withIndex("by_owner_client_id", (q) =>
           q.eq("ownerTokenIdentifier", owner).eq("clientId", clientId)
         )
-        .unique();
+        .first();
       if (existing) return { ok: true as const, action: "duplicate" as const };
 
       const contactFields = await resolveForIngest(ctx, owner, {

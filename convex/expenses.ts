@@ -2,7 +2,28 @@ import { internalQuery, mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import { requireTokenIdentifier } from "./authHelpers";
+import { aggregateInsights } from "./insightBuckets";
 import { assertValidAmount } from "./validators";
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Inclusive window, or null when the dates are unusable. A caller that asks for
+// decades would otherwise `.collect()` the whole ledger. Insights asks for 12
+// months (~370 days); search and the category drill ask for one month.
+function boundedRange(
+  start: string,
+  end: string,
+  maxDays: number,
+): { start: string; end: string } | null {
+  if (!ISO_DATE.test(start) || !ISO_DATE.test(end) || start > end) return null;
+  const startMs = Date.parse(`${start}T00:00:00Z`);
+  const endMs = Date.parse(`${end}T00:00:00Z`);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) return null;
+  const span = endMs - startMs;
+  const cap = maxDays * 86_400_000;
+  if (span <= cap) return { start, end };
+  return { start: new Date(endMs - cap).toISOString().slice(0, 10), end };
+}
 
 export const listByDate = query({
   args: { date: v.string() },
@@ -20,25 +41,49 @@ export const listRecent = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, { limit = 50 }) => {
     const owner = await requireTokenIdentifier(ctx);
+    // "Load older" raises this without a ceiling. Only reject a non-positive page.
+    const page = Number.isFinite(limit) ? Math.max(1, Math.floor(limit)) : 50;
     return ctx.db
       .query("expenses")
       .withIndex("by_owner", (q) => q.eq("ownerTokenIdentifier", owner))
       .order("desc")
-      .take(limit);
+      .take(page);
   },
 });
 
-// Inclusive date range [start, end] (ISO yyyy-mm-dd). Powers the Insights screen.
+// Inclusive date range [start, end] (ISO yyyy-mm-dd). Search uses one month.
+// Insights calls this only after a category or merchant is opened.
 export const listRange = query({
   args: { start: v.string(), end: v.string() },
   handler: async (ctx, { start, end }) => {
     const owner = await requireTokenIdentifier(ctx);
+    const range = boundedRange(start, end, 62);
+    if (!range) return [];
     return ctx.db
       .query("expenses")
       .withIndex("by_owner_date", (q) =>
-        q.eq("ownerTokenIdentifier", owner).gte("date", start).lte("date", end)
+        q.eq("ownerTokenIdentifier", owner).gte("date", range.start).lte("date", range.end)
       )
       .collect();
+  },
+});
+
+// Year window for Insights. One object per month that has rows — monthly
+// debit/credit, category totals, SMS-vs-typed split, and the top merchants —
+// instead of every expense in the range.
+export const insightsSummary = query({
+  args: { start: v.string(), end: v.string() },
+  handler: async (ctx, { start, end }) => {
+    const owner = await requireTokenIdentifier(ctx);
+    const range = boundedRange(start, end, 400);
+    if (!range) return [];
+    const rows = await ctx.db
+      .query("expenses")
+      .withIndex("by_owner_date", (q) =>
+        q.eq("ownerTokenIdentifier", owner).gte("date", range.start).lte("date", range.end)
+      )
+      .collect();
+    return aggregateInsights(rows);
   },
 });
 
@@ -47,13 +92,15 @@ export const listRange = query({
 export const hasManualOnDate = internalQuery({
   args: { ownerTokenIdentifier: v.string(), date: v.string() },
   handler: async (ctx, { ownerTokenIdentifier, date }) => {
-    const rows = await ctx.db
+    // One manual row is enough. The source+date index avoids reading every SMS
+    // logged that day just to answer the cash nudge.
+    const manual = await ctx.db
       .query("expenses")
-      .withIndex("by_owner_date", (q) =>
-        q.eq("ownerTokenIdentifier", ownerTokenIdentifier).eq("date", date)
+      .withIndex("by_owner_source_date", (q) =>
+        q.eq("ownerTokenIdentifier", ownerTokenIdentifier).eq("source", "manual").eq("date", date)
       )
-      .collect();
-    return rows.some((r) => r.source === "manual");
+      .first();
+    return manual !== null;
   },
 });
 
