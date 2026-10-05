@@ -66,7 +66,7 @@ const NOT_A_TRANSACTION_RE =
 // Authentication / PIN lifecycle notices — not payments. Reminder footers like
 // "Never share your UPI PIN" after a posted debit do NOT match this.
 const AUTH_NOTICE_RE =
-  /(?:\botp\s*[:\-]?\s*\d{4,8}\b|\byour\s+otp\b|\bis\s+your\s+(?:one[\s-]?time\s+password|otp)\b|\bone[\s-]?time\s+password\b|\botp\s+for\s+(?:debit|credit|txn|transaction|payment)\b|\byour\s+(?:upi\s+)?pin\s+has\s+been\b|\b(?:set|reset|changed|updated?)\s+(?:your\s+)?(?:upi\s+)?pin\b|\benter\s+(?:your\s+)?(?:upi\s+)?pin\b|\bupi\s+pin\s+has\s+been\b)/i;
+  /(?:\botp\s*[:\-]?\s*\d{4,8}\b|\byour\s+otp\s+is\b|\byour\s+otp\s+for\b|\bis\s+your\s+(?:one[\s-]?time\s+password|otp)\b|\bone[\s-]?time\s+password\b|\botp\s+for\s+(?:debit|credit|txn|transaction|payment)\b|\byour\s+(?:upi\s+)?pin\s+has\s+been\b|\b(?:set|reset|changed|updated?)\s+(?:your\s+)?(?:upi\s+)?pin\b|\benter\s+(?:your\s+)?(?:upi\s+)?pin\b|\bupi\s+pin\s+has\s+been\b)/i;
 
 const DEBIT_PREP = "to|trf\\s+to|paid\\s+to|towards|at";
 const CREDIT_PREP = "from|by";
@@ -177,15 +177,16 @@ function extractAmount(text: string): number | null {
   const forOf = AMOUNT_FOR_OF_CURRENCY_RE.exec(text);
   const spent = AMOUNT_SPENT_FOR_RE.exec(text);
   const crdr = AMOUNT_UPI_CRDR_RE.exec(text);
-  const candidates = [onDateFor, before, spent, crdr, forOf, after].flatMap((m) =>
+  // Verb-anchored candidates first. Generic "for/of Rs" is only a fallback so a
+  // footer like "Charges of Rs.5" cannot override "debited by Rs.500".
+  const verbAnchored = [onDateFor, before, spent, crdr, after].flatMap((m) =>
     m ? [m] : [],
   );
-  // Prefer an explicit Rs/INR/₹ amount over a bare number (destination a/c, etc.).
-  const withCurrency = candidates.filter((m) => /rs\.?|inr|₹/i.test(m[0]));
-  const saneBare = candidates.filter(
-    (m) => !/rs\.?|inr|₹/i.test(m[0]) && !looksLikeAccountNumber(m),
-  );
-  const chosen = withCurrency[0] ?? saneBare[0];
+  const hasCurrency = (m: RegExpMatchArray) => /rs\.?|inr|₹/i.test(m[0]);
+  const verbWithCurrency = verbAnchored.filter(hasCurrency);
+  const forOfCurrency = forOf && hasCurrency(forOf) ? [forOf] : [];
+  const saneBare = verbAnchored.filter((m) => !hasCurrency(m) && !looksLikeAccountNumber(m));
+  const chosen = verbWithCurrency[0] ?? forOfCurrency[0] ?? saneBare[0];
   if (!chosen) return null;
   const amount = parseAmount(chosen);
   if (!(amount > 0) || amount > MAX_PARSED_AMOUNT_PAISE) return null;

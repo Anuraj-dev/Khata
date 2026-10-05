@@ -618,3 +618,20 @@ describe("parseSms — Sol blocking SMS correctness", () => {
     expect(parseSms("Your UPI PIN has been set. Do not share Rs.500. -SBI")).toBeNull();
   });
 });
+
+describe("parseSms — Sol round-2 correctness", () => {
+  it("still parses completed debits with a your-OTP reminder footer", () => {
+    expect(
+      parseSms("Rs.250 debited to Shop on 05-10-26. Never share your OTP or UPI PIN.")
+    ).toMatchObject({ amount: 25000, direction: "debit", party: "Shop" });
+    expect(
+      parseSms("Rs.250 debited to Shop on 05-10-26. Do not share your OTP/PIN with anyone.")
+    ).toMatchObject({ amount: 25000, direction: "debit", party: "Shop" });
+  });
+
+  it("does not let a charges-of footer override the verb amount", () => {
+    expect(
+      parseSms("Your a/c debited by Rs.500 to Shop on 05-10-26. Charges of Rs.5 apply.")
+    ).toMatchObject({ amount: 50000, direction: "debit", party: "Shop" });
+  });
+});
