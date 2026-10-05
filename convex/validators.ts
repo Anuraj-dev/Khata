@@ -8,8 +8,12 @@
 // above any real personal expense, low enough to bound damage from a bad client.
 export const MAX_AMOUNT_PAISE = 1_000_000_000;
 
+export function isValidAmount(amount: number): boolean {
+  return Number.isInteger(amount) && amount > 0 && amount <= MAX_AMOUNT_PAISE;
+}
+
 export function assertValidAmount(amount: number): void {
-  if (!Number.isInteger(amount) || amount <= 0 || amount > MAX_AMOUNT_PAISE) {
+  if (!isValidAmount(amount)) {
     throw new Error("Invalid amount");
   }
 }

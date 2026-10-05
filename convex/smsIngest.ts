@@ -4,6 +4,7 @@ import { internal } from "./_generated/api";
 import { requireTokenIdentifier } from "./authHelpers";
 import { parseSms, isUpiSms, categorizeSms, smsClientId } from "./smsParser";
 import { resolveForIngest } from "./contactsHelpers";
+import { isValidAmount } from "./validators";
 
 // Convex runs in UTC; the app is IST. Convert an epoch-ms SMS receive time to the
 // IST calendar date (yyyy-mm-dd) so the fallback date matches what the device-side
@@ -94,7 +95,9 @@ export const ingestFromDevice = internalMutation({
     const date = parsed?.date ?? toIstIsoDate(timestamp);
 
     // Confident parse (amount + direction) → log directly, deduped on clientId.
-    if (parsed && parsed.amount && parsed.direction) {
+    // Same amount ceiling as foreground auto-log (assertValidAmount): never store
+    // an absurd / account-number-sized value as an expense.
+    if (parsed && parsed.amount && parsed.direction && isValidAmount(parsed.amount)) {
       const clientId = smsClientId({ ...parsed, date }, body);
       const existing = await ctx.db
         .query("expenses")
@@ -134,10 +137,13 @@ export const ingestFromDevice = internalMutation({
     }
 
     // Ambiguous bank SMS → manual review queue (+ review push), mirroring
-    // smsQueue.enqueue.
+    // smsQueue.enqueue. Strip amounts that fail the shared ceiling so a review
+    // card never shows an account number as rupees.
+    const reviewAmount =
+      parsed?.amount && isValidAmount(parsed.amount) ? parsed.amount : undefined;
     await ctx.db.insert("smsReviewQueue", {
       rawSms: body,
-      parsedAmount: parsed?.amount,
+      parsedAmount: reviewAmount,
       parsedParty: parsed?.party,
       parsedDirection: parsed?.direction,
       parsedDate: date,
@@ -146,8 +152,8 @@ export const ingestFromDevice = internalMutation({
       ownerTokenIdentifier: owner,
       createdAt: Date.now(),
     });
-    const rupeesStr = parsed?.amount
-      ? `₹${parsed.amount % 100 === 0 ? parsed.amount / 100 : (parsed.amount / 100).toFixed(2)} · `
+    const rupeesStr = reviewAmount
+      ? `₹${reviewAmount % 100 === 0 ? reviewAmount / 100 : (reviewAmount / 100).toFixed(2)} · `
       : "";
     await ctx.scheduler.runAfter(0, internal.pushNotifications.sendToUser, {
       ownerTokenIdentifier: owner,

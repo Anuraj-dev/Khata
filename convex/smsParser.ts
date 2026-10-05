@@ -19,6 +19,8 @@ export type ParsedSms = {
 
 // Verb, then up to a few words, then the amount. Covers "debited by Rs.250",
 // "debit by transfer of Rs 500", and "debited by 500.0" (some SBI alerts omit Rs).
+// Skip words may include short rails ("transfer") but not bare destination
+// account digits — those are rejected later when they lack a currency mark.
 const AMOUNT_AFTER_VERB_RE =
   /(?:debited|credited|debit|credit|deducted|sent|paid|received|spent|withdrawn|withdrawal|transferred|deposited|payment)\s*[:\-]?\s+(?:by|with|for|of|via)?(?:\s+[a-z]{2,14}){0,3}?\s*(?:rs\.?|inr|₹)?\s*([0-9,]+(?:\.[0-9]{1,2})?)/i;
 // Amount immediately before the verb: "Rs.250 debited", "Rs 500.00 has been credited",
@@ -26,12 +28,21 @@ const AMOUNT_AFTER_VERB_RE =
 // balance cannot win.
 const AMOUNT_BEFORE_VERB_RE =
   /(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)\s+(?:has been |is |was |been )?(?:reversed and )?(?:debited|credited|deducted|paid|sent|received|spent|withdrawn|transferred|deposited|reversed)\b/i;
+// "debited on 05-10-26 for Rs.500" — a date sits between the verb and the amount.
+const AMOUNT_VERB_ON_DATE_FOR_RE =
+  /(?:debited|credited|deducted)\s+on\s+[\dA-Za-z./\-]+\s+for\s+(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i;
+// "… for Rs.500" / "… of INR 500" after a movement verb somewhere earlier.
+const AMOUNT_FOR_OF_CURRENCY_RE =
+  /\b(?:for|of)\s+(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i;
 // "Spent ... for INR 899" and "UPI-CR of Rs.75" — the verb and the amount are
 // not adjacent, but both are still the posted transaction.
 const AMOUNT_SPENT_FOR_RE =
   /\bspent\b[\s\S]{0,48}?(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i;
 const AMOUNT_UPI_CRDR_RE =
   /\bupi[\s-]*(?:cr|dr)\b[\s\S]{0,24}?(?:rs\.?|inr|₹)\s*([0-9,]+(?:\.[0-9]{1,2})?)/i;
+// ₹1 crore in paise — same ceiling as validators.MAX_AMOUNT_PAISE. Kept local so
+// this pure module stays free of Convex imports for the web bundler.
+const MAX_PARSED_AMOUNT_PAISE = 1_000_000_000;
 const UPI_REF_RE = /(?:upi\s*ref(?:erence)?\s*(?:no\.?|number)?|ref\s*no\.?)\s*[:\-]?\s*([0-9]{10,})/i;
 // Fallback for the many banks that print a bare 12-digit UPI RRN without the
 // word "no" — "UPI:4123...", "Ref 4123...", "RRN 4123...". The exact 12-digit
@@ -47,9 +58,15 @@ const CREDIT_KEYWORDS = /(?:credited|received|added|deposited|refund|reversed|ha
 // comes first wins.
 const CREDIT_TO_SELF_RE = /credited\s+to\s+(?:your|(?:a\/c|ac\b|acct|account)(?!\s+of\b))\b/i;
 const DEBIT_FROM_SELF_RE = /(?:debited|deducted)\s+(?:from|by|for|with)\b/i;
-// Not a posted transaction. Leaving these as "bank SMS" used to fill the review queue.
+// Not a posted / settled transaction. Pending and processing alerts must not
+// auto-log; OTP/PIN *notices* are handled separately so a completed debit that
+// only appends a "never share PIN" footer still parses.
 const NOT_A_TRANSACTION_RE =
-  /(?:\bwill be\b|\bshall be\b|\byet to be\b)\s+(?:debited|credited|deducted)|(?:payment|transaction|transfer|upi(?:\s+payment)?)\s+(?:failed|declined|unsuccessful)|could not be (?:processed|completed)|insufficient (?:balance|funds)|\bhas requested\b|\brequesting\b|\bone[\s-]?time password\b|\botp\b|\bis pending\b|\bpending approval\b|\bmini\s*statement\b|\bupi pin\b/i;
+  /(?:\bwill be\b|\bshall be\b|\byet to be\b)\s+(?:debited|credited|deducted)|(?:payment|transaction|transfer|upi(?:\s+payment)?)\s+(?:failed|declined|unsuccessful)|could not be (?:processed|completed)|insufficient (?:balance|funds)|\bhas requested\b|\brequesting\b|\bis pending\b|\bpending approval\b|\bpending\b|\bis processing\b|\bunder process\b|\bmini\s*statement\b|\be-?mandate\b|\bautopay\b|\bauto\s*pay\b/i;
+// Authentication / PIN lifecycle notices — not payments. Reminder footers like
+// "Never share your UPI PIN" after a posted debit do NOT match this.
+const AUTH_NOTICE_RE =
+  /(?:\botp\s*[:\-]?\s*\d{4,8}\b|\byour\s+otp\b|\bis\s+your\s+(?:one[\s-]?time\s+password|otp)\b|\bone[\s-]?time\s+password\b|\botp\s+for\s+(?:debit|credit|txn|transaction|payment)\b|\byour\s+(?:upi\s+)?pin\s+has\s+been\b|\b(?:set|reset|changed|updated?)\s+(?:your\s+)?(?:upi\s+)?pin\b|\benter\s+(?:your\s+)?(?:upi\s+)?pin\b|\bupi\s+pin\s+has\s+been\b)/i;
 
 const DEBIT_PREP = "to|trf\\s+to|paid\\s+to|towards|at";
 const CREDIT_PREP = "from|by";
@@ -145,18 +162,34 @@ function resolveDirection(text: string): "debit" | "credit" | null {
   return null;
 }
 
+function looksLikeAccountNumber(match: RegExpMatchArray): boolean {
+  // Destination a/c digits often sit where a bare amount would: 8+ integer digits,
+  // no decimal paise. Real SMS amounts almost never look like that without Rs/INR.
+  const raw = match[1].replace(/,/g, "");
+  if (raw.includes(".")) return false;
+  return /^\d{8,}$/.test(raw);
+}
+
 function extractAmount(text: string): number | null {
   const after = AMOUNT_AFTER_VERB_RE.exec(text);
   const before = AMOUNT_BEFORE_VERB_RE.exec(text);
+  const onDateFor = AMOUNT_VERB_ON_DATE_FOR_RE.exec(text);
+  const forOf = AMOUNT_FOR_OF_CURRENCY_RE.exec(text);
   const spent = AMOUNT_SPENT_FOR_RE.exec(text);
   const crdr = AMOUNT_UPI_CRDR_RE.exec(text);
-  const candidates = [after, before, spent, crdr].flatMap((m) => (m ? [m] : []));
-  // A currency mark next to the verb beats a bare number ("debited by 2 faasos").
+  const candidates = [onDateFor, before, spent, crdr, forOf, after].flatMap((m) =>
+    m ? [m] : [],
+  );
+  // Prefer an explicit Rs/INR/₹ amount over a bare number (destination a/c, etc.).
   const withCurrency = candidates.filter((m) => /rs\.?|inr|₹/i.test(m[0]));
-  const chosen = withCurrency[0] ?? candidates[0];
+  const saneBare = candidates.filter(
+    (m) => !/rs\.?|inr|₹/i.test(m[0]) && !looksLikeAccountNumber(m),
+  );
+  const chosen = withCurrency[0] ?? saneBare[0];
   if (!chosen) return null;
   const amount = parseAmount(chosen);
-  return amount > 0 ? amount : null;
+  if (!(amount > 0) || amount > MAX_PARSED_AMOUNT_PAISE) return null;
+  return amount;
 }
 
 function extractUpiRef(text: string): string | undefined {
@@ -165,7 +198,7 @@ function extractUpiRef(text: string): string | undefined {
 
 export function parseSms(sms: string): ParsedSms | null {
   const text = sms.trim();
-  if (NOT_A_TRANSACTION_RE.test(text)) return null;
+  if (AUTH_NOTICE_RE.test(text) || NOT_A_TRANSACTION_RE.test(text)) return null;
 
   // Prefer an amount glued to a transaction verb over the first "Rs." in the
   // message — a leading "Avbl Bal Rs.9,999" must not beat "debited by Rs.250",
@@ -312,7 +345,7 @@ function hash(str: string): string {
 }
 
 export function isUpiSms(sender: string, body: string): boolean {
-  if (NOT_A_TRANSACTION_RE.test(body)) return false;
+  if (AUTH_NOTICE_RE.test(body) || NOT_A_TRANSACTION_RE.test(body)) return false;
   const knownBanks =
     /hdfc|sbi|icici|axis|kotak|yes\s*bank|pnb|bob|canara|union\s*bank|idfc|au\s*bank|paytm|gpay|phonepe|google\s*pay|indusind|federal|rbl|bandhan|idbi|indian\s*bank|central\s*bank|uco|amazonpay|amazon\s*pay|cred|slice|fi\s*money|jupiter|navi|sbm|equitas|karnataka\s*bank|dbs|hsbc|citibank|\bciti\b|fino|ippb|bhim|freecharge|mobikwik|niyo|scapia/i;
   return knownBanks.test(sender) && (DEBIT_KEYWORDS.test(body) || CREDIT_KEYWORDS.test(body));

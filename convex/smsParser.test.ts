@@ -562,3 +562,59 @@ describe("parseSms — verbs Codex flagged", () => {
     );
   });
 });
+
+
+describe("parseSms — Sol blocking SMS correctness", () => {
+  it("prefers for-Rs over a destination account number", () => {
+    const r = parseSms(
+      "Your a/c debited by transfer to 1234567890 for Rs.500 on 05-10-26"
+    );
+    expect(r).toMatchObject({ amount: 50000, direction: "debit", date: "2026-10-05" });
+    expect(r?.amount).not.toBe(123456789000);
+  });
+
+  it("still parses a completed debit that appends a UPI PIN reminder", () => {
+    const r = parseSms("Rs.250 debited to Shop on 05-10-26. Never share your UPI PIN.");
+    expect(r).toMatchObject({ amount: 25000, direction: "debit", party: "Shop", date: "2026-10-05" });
+    expect(isUpiSms("VM-SBI", "Rs.250 debited to Shop on 05-10-26. Never share your UPI PIN.")).toBe(
+      true,
+    );
+  });
+
+  it("still parses a completed debit that appends an OTP/PIN do-not-share footer", () => {
+    expect(
+      parseSms("Rs.250 debited to Shop on 05-10-26. Do not share OTP or PIN with anyone.")
+    ).toMatchObject({ amount: 25000, direction: "debit", party: "Shop" });
+  });
+
+  it("rejects pending: and is-processing UPI as unsettled", () => {
+    expect(
+      parseSms("UPI transaction pending: Rs.500 paid to shop@oksbi. Ref 412345678901")
+    ).toBeNull();
+    expect(
+      parseSms("Your UPI payment of Rs.300 is processing. Ref 512345678901")
+    ).toBeNull();
+    expect(
+      isUpiSms("VM-SBI", "UPI transaction pending: Rs.500 paid to shop@oksbi. Ref 412345678901")
+    ).toBe(false);
+    expect(
+      isUpiSms("VM-HDFCBK", "Your UPI payment of Rs.300 is processing. Ref 512345678901")
+    ).toBe(false);
+  });
+
+  it("reads debited-on-DATE-for-Rs templates again", () => {
+    expect(
+      parseSms("Your A/c XX1234 debited on 05-10-26 for Rs.500 to Swiggy")
+    ).toMatchObject({
+      amount: 50000,
+      direction: "debit",
+      party: "Swiggy",
+      date: "2026-10-05",
+    });
+  });
+
+  it("still rejects real OTP and PIN lifecycle notices", () => {
+    expect(parseSms("OTP 482193 for debit of Rs.500. Do not share. -SBI")).toBeNull();
+    expect(parseSms("Your UPI PIN has been set. Do not share Rs.500. -SBI")).toBeNull();
+  });
+});

@@ -257,3 +257,65 @@ describe("SMS ingest device auth", () => {
     expect(result.ok).toBe(false);
   });
 });
+
+describe("SMS ingest parser correctness", () => {
+  async function register(t: ReturnType<typeof convexTest>, secret: string) {
+    await t.withIdentity(ALICE).mutation(api.smsIngest.registerDevice, {
+      deviceSecret: secret,
+      platform: "android",
+    });
+  }
+
+  it("logs for-Rs amount, not a destination account number", async () => {
+    const t = convexTest(schema, modules);
+    await register(t, "dev-acct");
+    const result = await t.mutation(internal.smsIngest.ingestFromDevice, {
+      deviceSecret: "dev-acct",
+      sender: "VM-SBIIN",
+      body: "Your a/c debited by transfer to 1234567890 for Rs.500 on 05-10-26",
+      timestamp: Date.parse("2026-10-05T10:00:00+05:30"),
+    });
+    expect(result).toMatchObject({ ok: true, action: "logged" });
+    const rows = await t.run(async (ctx) => ctx.db.query("expenses").collect());
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.amount).toBe(50000);
+  });
+
+  it("still auto-logs a completed debit with a UPI PIN reminder footer", async () => {
+    const t = convexTest(schema, modules);
+    await register(t, "dev-pin-footer");
+    const result = await t.mutation(internal.smsIngest.ingestFromDevice, {
+      deviceSecret: "dev-pin-footer",
+      sender: "VM-HDFCBK",
+      body: "Rs.250 debited to Shop on 05-10-26. Never share your UPI PIN.",
+      timestamp: Date.parse("2026-10-05T10:00:00+05:30"),
+    });
+    expect(result).toMatchObject({ ok: true, action: "logged" });
+    const rows = await t.run(async (ctx) => ctx.db.query("expenses").collect());
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.amount).toBe(25000);
+  });
+
+  it("does not auto-log pending or processing UPI as settled expenses", async () => {
+    const t = convexTest(schema, modules);
+    await register(t, "dev-pending");
+    const pending = await t.mutation(internal.smsIngest.ingestFromDevice, {
+      deviceSecret: "dev-pending",
+      sender: "VM-SBIIN",
+      body: "UPI transaction pending: Rs.500 paid to shop@oksbi. Ref 412345678901",
+      timestamp: Date.parse("2026-10-05T10:00:00+05:30"),
+    });
+    const processing = await t.mutation(internal.smsIngest.ingestFromDevice, {
+      deviceSecret: "dev-pending",
+      sender: "VM-HDFCBK",
+      body: "Your UPI payment of Rs.300 is processing. Ref 512345678901",
+      timestamp: Date.parse("2026-10-05T10:05:00+05:30"),
+    });
+    expect(pending).toMatchObject({ ok: true, action: "ignored" });
+    expect(processing).toMatchObject({ ok: true, action: "ignored" });
+    const expenses = await t.run(async (ctx) => ctx.db.query("expenses").collect());
+    const queue = await t.run(async (ctx) => ctx.db.query("smsReviewQueue").collect());
+    expect(expenses).toHaveLength(0);
+    expect(queue).toHaveLength(0);
+  });
+});
