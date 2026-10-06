@@ -366,8 +366,9 @@ export function App() {
   // signed-in recipient still lands on the trip after the OAuth round-trip.
   useEffect(() => { captureJoinFromUrl(); }, []);
 
-  // Native splash is held open (launchAutoHide:false) until React commits, so
-  // there's no white flash between the launch screen and the webview painting.
+  // Hide the native splash as soon as React commits. capacitor.config also
+  // auto-hides it on a timer, so a slow or failed boot can't leave the app
+  // stuck on the logo.
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
     requestAnimationFrame(() => {
